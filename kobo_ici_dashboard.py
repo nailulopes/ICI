@@ -454,6 +454,10 @@ if "expect_label" in df.columns and "satisfaction_label" in df.columns:
 # ═══ PANEL 8 — Emotions ═══
 st.markdown('<div class="section-title">How Women Felt at the Time of Delivery</div>', unsafe_allow_html=True)
 
+# Debug: show which emotion cols exist in the dataframe
+emotion_cols_found = [c for c in df.columns if "emotion" in c.lower()]
+st.caption(f"DEBUG — emotion cols in API data: {emotion_cols_found[:6]}")
+
 rows = []
 for col, label in EMOTION_MAP.items():
     if col in df.columns:
