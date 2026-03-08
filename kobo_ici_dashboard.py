@@ -532,77 +532,90 @@ if rows:
 # PANEL 5 — Autonomy & Consent
 # ════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_autonomy",lang)}</div>', unsafe_allow_html=True)
+# Decisions & exam — 4+ cats → horizontal bar
 c1,c2=st.columns(2)
 if "decisions_label" in df.columns:
     dc=df["decisions_label"].value_counts().reset_index(); dc.columns=["r","n"]
     fig=px.bar(dc, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL],
                labels={"r":"","n":t("responses",lang)})
-    fig=clean_layout(fig, title=t("a_decisions",lang), height=260)
+    fig=clean_layout(fig, title=t("a_decisions",lang), height=270)
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c1.plotly_chart(fig, use_container_width=True)
 if "exam_label" in df.columns:
     ec=df["exam_label"].value_counts().reset_index(); ec.columns=["r","n"]
-    exam_colors=[TEAL,SKY,ORANGE,PINK,VERMILION]
+    # colour by severity: green→red
+    color_map = {v:c for v,c in zip(ec["r"].tolist(), [TEAL,SKY,ORANGE,PINK,VERMILION])}
     fig=px.bar(ec, x="n", y="r", orientation="h",
-               color="r", color_discrete_sequence=exam_colors,
+               color="r", color_discrete_map=color_map,
                labels={"r":"","n":""})
-    fig=clean_layout(fig, title=t("a_exam",lang), height=260)
+    fig=clean_layout(fig, title=t("a_exam",lang), height=270)
     fig.update_layout(showlegend=False)
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c2.plotly_chart(fig, use_container_width=True)
 
+# Epi — 4 cats → horizontal bar; Treat — 3 cats → donut (clear binary)
 c1,c2=st.columns(2)
 if "epi_label" in df.columns:
     ep=df["epi_label"].value_counts().reset_index(); ep.columns=["r","n"]
-    fig=px.pie(ep, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("a_epi",lang), height=300, legend_below=True)
+    fig=px.bar(ep, x="n", y="r", orientation="h",
+               color_discrete_sequence=[TEAL],
+               labels={"r":"","n":t("responses",lang)})
+    fig=clean_layout(fig, title=t("a_epi",lang), height=250)
+    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c1.plotly_chart(fig, use_container_width=True)
 if "treat_label" in df.columns:
     tc=df["treat_label"].value_counts().reset_index(); tc.columns=["r","n"]
-    fig=px.pie(tc, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("a_treat",lang), height=300, legend_below=True)
+    fig=px.pie(tc, names="r", values="n", hole=0.5, color_discrete_sequence=PIE_COLORS)
+    fig=clean_layout(fig, title=t("a_treat",lang), height=250, legend_below=True)
     c2.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
 # PANEL 6 — Clinical Practices
 # ════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_clinical",lang)}</div>', unsafe_allow_html=True)
+
+# Row 1: skin (5+ cats → bar), bf (6 cats → bar), induce (3 cats → donut)
 c1,c2,c3=st.columns(3)
 if "skin_label" in df.columns:
     sk=df["skin_label"].value_counts().reset_index(); sk.columns=["r","n"]
-    fig=px.pie(sk, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("c_skin",lang), height=300, legend_below=True)
+    fig=px.bar(sk, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL],
+               labels={"r":"","n":t("responses",lang)})
+    fig=clean_layout(fig, title=t("c_skin",lang), height=290)
+    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c1.plotly_chart(fig, use_container_width=True)
 if "bf_label" in df.columns:
     bf=df["bf_label"].value_counts().reset_index(); bf.columns=["r","n"]
     fig=px.bar(bf, x="n", y="r", orientation="h", color_discrete_sequence=[BLUISH],
                labels={"r":"","n":""})
-    fig=clean_layout(fig, title=t("c_bf",lang), height=300)
+    fig=clean_layout(fig, title=t("c_bf",lang), height=290)
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c2.plotly_chart(fig, use_container_width=True)
 if "induce_label" in df.columns:
     ind=df["induce_label"].value_counts().reset_index(); ind.columns=["r","n"]
-    fig=px.pie(ind, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("c_induce",lang), height=300, legend_below=True)
+    fig=px.pie(ind, names="r", values="n", hole=0.52, color_discrete_sequence=PIE_COLORS)
+    fig=clean_layout(fig, title=t("c_induce",lang), height=290, legend_below=True)
     c3.plotly_chart(fig, use_container_width=True)
 
+# Row 2: pharma (5 cats → bar), comfort (4 cats → bar), rooming (clear dominant → donut)
 c1,c2,c3=st.columns(3)
 if "pharma_label" in df.columns:
     ph=df["pharma_label"].value_counts().reset_index(); ph.columns=["r","n"]
     fig=px.bar(ph, x="n", y="r", orientation="h", color_discrete_sequence=[SKY],
                labels={"r":"","n":""})
-    fig=clean_layout(fig, title=t("c_pharma",lang), height=280)
+    fig=clean_layout(fig, title=t("c_pharma",lang), height=270)
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c1.plotly_chart(fig, use_container_width=True)
 if "comfort_label" in df.columns:
     co=df["comfort_label"].value_counts().reset_index(); co.columns=["r","n"]
-    fig=px.pie(co, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("c_comfort",lang), height=280, legend_below=True)
+    fig=px.bar(co, x="n", y="r", orientation="h", color_discrete_sequence=[ORANGE],
+               labels={"r":"","n":""})
+    fig=clean_layout(fig, title=t("c_comfort",lang), height=270)
+    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c2.plotly_chart(fig, use_container_width=True)
 if "rooming_label" in df.columns:
     ro=df["rooming_label"].value_counts().reset_index(); ro.columns=["r","n"]
-    fig=px.pie(ro, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("c_rooming",lang), height=280, legend_below=True)
+    fig=px.pie(ro, names="r", values="n", hole=0.52, color_discrete_sequence=PIE_COLORS)
+    fig=clean_layout(fig, title=t("c_rooming",lang), height=270, legend_below=True)
     c3.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
@@ -665,14 +678,25 @@ if "info" in df.columns:
 # PANEL 10 — Mistreatment
 # ════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_mistreat",lang)}</div>', unsafe_allow_html=True)
+# verbal & phys: binary (Yes/No) → donut fine; payment: 4 cats → bar
 c1,c2,c3=st.columns(3)
-for col,field,title in [(c1,"verbal_label",t("m_verbal",lang)),
-                         (c2,"phys_label",t("m_phys",lang)),
-                         (c3,"payment_label",t("m_payment",lang))]:
+for col,field,title,use_bar in [
+    (c1,"verbal_label",t("m_verbal",lang),False),
+    (c2,"phys_label",t("m_phys",lang),False),
+    (c3,"payment_label",t("m_payment",lang),True),
+]:
     if field in df.columns:
         vc=df[field].value_counts().reset_index(); vc.columns=["r","n"]
-        fig=px.pie(vc, names="r", values="n", hole=0.4, color_discrete_sequence=PIE_COLORS)
-        fig=clean_layout(fig, title=title, height=280, legend_below=True)
+        if use_bar:
+            fig=px.bar(vc, x="n", y="r", orientation="h",
+                       color_discrete_sequence=[VERMILION],
+                       labels={"r":"","n":t("responses",lang)})
+            fig=clean_layout(fig, title=title, height=260)
+            fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
+        else:
+            fig=px.pie(vc, names="r", values="n", hole=0.52,
+                       color_discrete_sequence=PIE_COLORS)
+            fig=clean_layout(fig, title=title, height=260, legend_below=True)
         col.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
