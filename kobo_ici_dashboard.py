@@ -111,7 +111,7 @@ L = {
 "sat_actual":    {"EN":"Now, I feel that my care was:","FR":"Maintenant, j'estime que mes soins étaient :"},
 "m_verbal":      {"EN":"Verbal abuse","FR":"Violence verbale"},
 "m_phys":        {"EN":"Physical abuse","FR":"Violence physique"},
-"m_payment":     {"EN":"Asked for payment","FR":"Paiement demandé"},
+"m_payment":     {"EN":"Informed of costs in advance","FR":"Informée des coûts à l'avance"},
 }
 def t(k, lang): return L.get(k,{}).get(lang, k)
 
@@ -120,7 +120,7 @@ def t(k, lang): return L.get(k,{}).get(lang, k)
 # ════════════════════════════════════════════════════════════
 METHOD_MAP     = {"EN":{1:"Vaginal",2:"Assisted vaginal",3:"Elective caesarean",4:"Emergency caesarean",5:"VBAC",0:"Don't know"},
                   "FR":{1:"Vaginal",2:"Vaginal assisté",3:"Césarienne élective",4:"Césarienne d'urgence",5:"AVAC",0:"Ne sait pas"}}
-EDUCATION_MAP  = {"EN":{1:"None",2:"Primary",3:"Secondary",4:"Higher"},"FR":{1:"Aucune",2:"Primaire",3:"Secondaire",4:"Supérieur"}}
+EDUCATION_MAP  = {"EN":{1:"No formal schooling",2:"Primary",3:"Secondary",4:"Higher"},"FR":{1:"Sans scolarité",2:"Primaire",3:"Secondaire",4:"Supérieur"}}
 RISK_MAP       = {"EN":{1:"Yes",2:"No",0:"Don't know"},"FR":{1:"Oui",2:"Non",0:"Ne sait pas"}}
 LIKERT5_MAP    = {"EN":{5:"Always",4:"Most of the time",3:"Sometimes",2:"Rarely",1:"Never",0:"Don't know/N.A."},
                   "FR":{5:"Toujours",4:"La plupart du temps",3:"Parfois",2:"Rarement",1:"Jamais",0:"Ne sait pas/N.A."}}
@@ -134,19 +134,19 @@ EPI_MAP        = {"EN":{1:"Yes, with consent",2:"Yes, without consent",3:"No —
                   "FR":{1:"Oui, avec consentement",2:"Oui, sans consentement",3:"Non — refusée",4:"Non — non recommandée"}}
 EXAM_MAP       = {"EN":{1:"Never w/o consent",2:"Rarely",3:"Sometimes",4:"Frequently",5:"Always w/o consent"},
                   "FR":{1:"Jamais s.c.",2:"Rarement",3:"Parfois",4:"Fréquemment",5:"Toujours s.c."}}
-TREAT_MAP      = {"EN":{2:"Yes",1:"No",0:"Don't know"},"FR":{2:"Oui",1:"Non",0:"Ne sait pas"}}
+TREAT_MAP      = {"EN":{1:"Yes",2:"No",0:"Don't know"},"FR":{1:"Oui",2:"Non",0:"Ne sait pas"}}
 BF_MAP         = {"EN":{1:"Did not breastfeed",2:"No need for help",3:"Needed help — not received",4:"Helped but not enough",5:"Received needed help",0:"Don't know"},
                   "FR":{1:"N'a pas allaité",2:"Pas besoin d'aide",3:"Besoin d'aide — non reçue",4:"Aidée insuffisamment",5:"A reçu l'aide nécessaire",0:"Ne sait pas"}}
 SKIN_MAP       = {"EN":{1:"Yes — immediate",2:"Yes — not immediate",3:"Yes — <1 hour",4:"No",5:"Don't know",9:"Neonatal unit"},
                   "FR":{1:"Oui — immédiat",2:"Oui — pas immédiat",3:"Oui — <1 heure",4:"Non",5:"Ne sait pas",9:"Unité néonatale"}}
 INDUCE_MAP     = {"EN":{1:"No",2:"Yes",0:"Don't know"},"FR":{1:"Non",2:"Oui",0:"Ne sait pas"}}
-PHARMA_MAP     = {"EN":{1:"No analgesia",2:"Non-pharmacological only",3:"Offered, declined",4:"Pharmacological received",0:"Don't know"},
-                  "FR":{1:"Pas d'analgésie",2:"Non-pharmacologique seulement",3:"Proposée, refusée",4:"Pharmacologique reçue",0:"Ne sait pas"}}
-COMFORT_MAP    = {"EN":{1:"Yes",2:"No — not offered",3:"No — declined",0:"Don't know"},"FR":{1:"Oui",2:"Non — non proposée",3:"Non — refusée",0:"Ne sait pas"}}
-ROOMING_MAP    = {"EN":{4:"Yes — always",1:"Sometimes",2:"No",0:"Don't know"},"FR":{4:"Oui — toujours",1:"Parfois",2:"Non",0:"Ne sait pas"}}
-VERBAL_MAP     = {"EN":{1:"No",2:"Yes",5:"Don't know",0:"N/A"},"FR":{1:"Non",2:"Oui",5:"Ne sait pas",0:"N/A"}}
-PHYS_MAP       = {"EN":{1:"No",2:"Yes",3:"Don't know",0:"N/A"},"FR":{1:"Non",2:"Oui",3:"Ne sait pas",0:"N/A"}}
-PAYMENT_MAP    = {"EN":{1:"Yes — paid",2:"Asked, not paid",3:"Not asked",0:"Don't know"},"FR":{1:"Oui — a payé",2:"Demandé, non payé",3:"Non demandé",0:"Ne sait pas"}}
+PHARMA_MAP     = {"EN":{1:"No — did not want it",2:"No — wanted it, not given",3:"Yes — but too late",4:"Yes — when I wanted it",5:"No — facility doesn't offer",0:"Don't know"},
+                  "FR":{1:"Non — ne le souhaitait pas",2:"Non — voulu mais non reçu",3:"Oui — mais trop tard",4:"Oui — quand je le voulais",5:"Non — non disponible ici",0:"Ne sait pas"}}
+COMFORT_MAP    = {"EN":{1:"Yes — offered and used",2:"Yes — offered, not used",3:"No — none suggested",0:"Don't know"},"FR":{1:"Oui — proposé et utilisé",2:"Oui — proposé, non utilisé",3:"Non — rien suggéré",0:"Ne sait pas"}}
+ROOMING_MAP    = {"EN":{4:"Yes — with me most of the time",1:"No — baby was sick/sent to unit",2:"No — baby not with me",3:"No — I didn't want baby with me",0:"Don't know"},"FR":{4:"Oui — avec moi la plupart du temps",1:"Non — bébé malade/unité",2:"Non — bébé non avec moi",3:"Non — ne le souhaitait pas",0:"Ne sait pas"}}
+VERBAL_MAP     = {"EN":{1:"Never",2:"Rarely",3:"Sometimes",4:"Most of the time",5:"Always",0:"Don't know/N.A."},"FR":{1:"Jamais",2:"Rarement",3:"Parfois",4:"La plupart du temps",5:"Toujours",0:"Ne sait pas/N.A."}}
+PHYS_MAP       = {"EN":{1:"Never",2:"Rarely",3:"Sometimes",4:"Most of the time",5:"Always",0:"Don't know/N.A."},"FR":{1:"Jamais",2:"Rarement",3:"Parfois",4:"La plupart du temps",5:"Toujours",0:"Ne sait pas/N.A."}}
+PAYMENT_MAP    = {"EN":{1:"Yes, knew in advance",2:"No, didn't know cost",3:"No — care was free/insured",0:"Don't know"},"FR":{1:"Oui, informée à l'avance",2:"Non, coût inconnu",3:"Non — soins gratuits/assurés",0:"Ne sait pas"}}
 LIKERT_QS      = {"EN":{"introduction":"Staff introduced themselves","spoke":"Staff spoke clearly",
                          "communication":"Open to questions","privacy":"Privacy protected",
                          "respect":"Treated respectfully","values":"Beliefs & choices respected",
@@ -866,25 +866,22 @@ if "info" in df.columns:
 # PANEL 10 — Mistreatment
 # ════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_mistreat",lang)}</div>', unsafe_allow_html=True)
-# verbal & phys: binary (Yes/No) → donut fine; payment: 4 cats → bar
+# verbal & phys: freq scale (Never→Always) → horizontal bar; payment → bar
 c1,c2,c3=st.columns(3)
-for col,field,title,use_bar in [
-    (c1,"verbal_label",t("m_verbal",lang),False),
-    (c2,"phys_label",t("m_phys",lang),False),
-    (c3,"payment_label",t("m_payment",lang),True),
+freq_order = list(LIKERT5_MAP[lang].values())  # Always→Never order
+for col,field,title in [
+    (c1,"verbal_label",t("m_verbal",lang)),
+    (c2,"phys_label",t("m_phys",lang)),
+    (c3,"payment_label",t("m_payment",lang)),
 ]:
     if field in df.columns:
         vc=df[field].value_counts().reset_index(); vc.columns=["r","n"]
-        if use_bar:
-            fig=px.bar(vc, x="n", y="r", orientation="h",
-                       color_discrete_sequence=[VERMILION],
-                       labels={"r":"","n":t("responses",lang)})
-            fig=clean_layout(fig, title=title, height=260)
-            fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
-        else:
-            fig=px.pie(vc, names="r", values="n", hole=0.52,
-                       color_discrete_sequence=PIE_COLORS)
-            fig=clean_layout(fig, title=title, height=260, legend_below=True)
+        color = VERMILION if field in ["verbal_label","phys_label"] else BLUISH
+        fig=px.bar(vc, x="n", y="r", orientation="h",
+                   color_discrete_sequence=[color],
+                   labels={"r":"","n":t("responses",lang)})
+        fig=clean_layout(fig, title=title, height=260)
+        fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         col.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
