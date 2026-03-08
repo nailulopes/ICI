@@ -1,6 +1,6 @@
 """
 ICI Women's Experience Dashboard
-International Childbirth Initiative 
+International Childbirth Initiative — Questionnaire 2026
 """
 
 import streamlit as st
@@ -210,7 +210,7 @@ if logo_b64:
         unsafe_allow_html=True
     )
 col_title.title("Women's Experience Dashboard")
-col_title.caption("International Childbirth Initiative · 12 Steps to Safe and Respectful MotherBaby-Family Maternity Care · Questionnaire 2026")
+col_title.caption("International Childbirth Initiative · 12 Steps to Safe and Respectful MotherBaby-Family Maternity Care")
 
 st.divider()
 
@@ -451,7 +451,7 @@ st.markdown('<div class="section-title">How Women Felt at the Time of Delivery</
 rows = []
 for col, label in EMOTION_MAP.items():
     if col in df.columns:
-        pct = to_int(df[col]).sum() / len(df) * 100
+        pct = pd.to_numeric(df[col], errors="coerce").fillna(0).sum() / len(df) * 100
         rows.append({"Emotion": label, "Pct": round(pct, 1),
                      "Type": "Positive" if label in POSITIVE_EMOTIONS else "Negative"})
 if rows:
@@ -470,7 +470,7 @@ st.markdown('<div class="section-title">Information Provided Before Discharge</d
 rows = []
 for col, label in INFO_MAP.items():
     if col in df.columns:
-        pct = to_int(df[col]).sum() / len(df) * 100
+        pct = pd.to_numeric(df[col], errors="coerce").fillna(0).sum() / len(df) * 100
         rows.append({"Topic": label, "Pct": round(pct, 1)})
 if rows:
     idf = pd.DataFrame(rows).sort_values("Pct")
