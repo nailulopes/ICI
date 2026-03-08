@@ -1,6 +1,6 @@
 """
 ICI Women's Experience Dashboard
-International Childbirth Initiative — Questionnaire 2026
+International Childbirth Initiative 
 """
 
 import streamlit as st
