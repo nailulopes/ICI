@@ -542,43 +542,37 @@ if "method_label" in df.columns and "emotion" in df.columns:
 
     if tm_rows:
         tmdf = pd.DataFrame(tm_rows)
-        # Build explicit colors: root=neutral, methods=distinct blues/teals, leaves=pos/neg
-        method_palette = ["#6baed6","#74c476","#fd8d3c","#9e9ac8","#f768a1"]
-        all_labels = [root_lbl]
-        all_parents = [""]
-        all_values = [0]
-        all_colors = ["#eef2f0"]  # root: very light neutral
+        method_palette = ["#6baed6","#74c476","#fd8d3c","#9e9ac8","#9e9ac8"]
 
-        # Add method nodes
+        # Use unique IDs to avoid label collisions
+        ids, labels, parents, values, colors = [], [], [], [], []
+
+        # Root node
+        ids.append("root"); labels.append(root_lbl)
+        parents.append(""); values.append(0); colors.append("#eef2f0")
+
         methods_seen = tmdf["method"].unique().tolist()
         for i, m in enumerate(methods_seen):
-            sub = tmdf[tmdf["method"]==m]
-            all_labels.append(m)
-            all_parents.append(root_lbl)
-            all_values.append(int(sub["n"].sum()))
-            all_colors.append(method_palette[i % len(method_palette)])
-
-        # Add leaf nodes (pos/neg per method)
-        for _, row in tmdf.iterrows():
-            all_labels.append(f"{row['type']}<br><sup>{row['method']}</sup>")
-            all_parents.append(row["method"])
-            all_values.append(int(row["n"]))
-            all_colors.append("#a8d8c8" if row["type"]==pos_lbl else "#f0c4b0")
+            mid = f"m_{i}"
+            ids.append(mid); labels.append(m)
+            parents.append("root")
+            values.append(int(tmdf[tmdf["method"]==m]["n"].sum()))
+            colors.append(method_palette[i % len(method_palette)])
+            for _, row in tmdf[tmdf["method"]==m].iterrows():
+                lid = f"l_{i}_{row['type']}"
+                ids.append(lid)
+                labels.append(row["type"])
+                parents.append(mid)
+                values.append(int(row["n"]))
+                colors.append("#a8d8c8" if row["type"]==pos_lbl else "#f0c4b0")
 
         fig = go.Figure(go.Treemap(
-            labels=all_labels,
-            parents=all_parents,
-            values=all_values,
-            marker=dict(
-                colors=all_colors,
-                line=dict(width=2, color="white"),
-                cornerradius=5,
-            ),
+            ids=ids, labels=labels, parents=parents, values=values,
+            marker=dict(colors=colors, line=dict(width=2, color="white"), cornerradius=5),
             textinfo="label+percent parent",
             textfont=dict(size=12, family="DM Sans, sans-serif", color="#2a2a2a"),
-            hovertemplate="<b>%{label}</b><br>%{value} selections<extra></extra>",
-            branchvalues="total",
-            root_color="#eef2f0",
+            hovertemplate="<b>%{label}</b><br>%{value}<extra></extra>",
+            branchvalues="remainder",
         ))
         fig.update_layout(
             title=dict(text=treemap_title,
