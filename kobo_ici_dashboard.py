@@ -182,6 +182,12 @@ def prep(df):
         df["age"] = to_int(df["age"])
         df["age_group"] = pd.cut(df["age"], bins=[0, 19, 24, 29, 34, 39, 99],
                                   labels=["<20", "20–24", "25–29", "30–34", "35–39", "40+"])
+
+    # Emotion and info binary columns — API sends "0"/"1" as strings, force numeric
+    for col in list(EMOTION_MAP.keys()) + list(INFO_MAP.keys()):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+
     return df
 
 
