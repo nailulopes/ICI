@@ -289,22 +289,22 @@ h1,h2,h3{{font-family:'DM Serif Display',serif;}}
   font-size:0.85rem; color:rgba(255,255,255,0.78); margin:0 0 24px 0;
 }}
 .hero-stats {{
-  display:flex; gap:32px; flex-wrap:wrap;
+  display:flex; gap:12px; flex-wrap:nowrap;
 }}
 .hero-stat {{
   text-align:center;
   background:rgba(255,255,255,0.12);
   border-radius:14px;
-  padding:16px 24px;
+  padding:14px 12px;
   backdrop-filter:blur(4px);
-  min-width:110px;
+  flex:1; min-width:0;
 }}
 .hero-stat-num {{
-  font-size:2rem; font-weight:700; color:white; line-height:1;
+  font-size:1.7rem; font-weight:700; color:white; line-height:1;
   font-family:'DM Serif Display',serif;
 }}
 .hero-stat-label {{
-  font-size:0.72rem; color:rgba(255,255,255,0.8);
+  font-size:0.66rem; color:rgba(255,255,255,0.8);
   margin-top:5px; line-height:1.3;
 }}
 .hero-stat-bad {{ background:rgba(213,94,0,0.25); }}
@@ -868,4 +868,4 @@ with st.expander(t("raw_data",lang)):
     st.dataframe(df[show], use_container_width=True, height=400)
     csv=df[show].to_csv(index=False).encode("utf-8")
     st.download_button(t("download",lang), csv,
-                       f"ici_data_{datetime.today().strftime('%Y%m%d')}.csv","text/csv")
+                       f"ici_data_{datetime.now().strftime('%Y%m%d')}.csv","text/csv")
