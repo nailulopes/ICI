@@ -14,10 +14,51 @@ ASSET_UID = "aT3kXmLeYLtUC6zVAV5abW"
 BASE_URL  = "https://eu.kobotoolbox.org"
 try:
     KOBO_TOKEN = st.secrets["KOBO_TOKEN"]
+    APP_PASSWORD = st.secrets.get("APP_PASSWORD", "")
 except Exception:
     KOBO_TOKEN = ""
+    APP_PASSWORD = ""
     st.error("⚠️ KOBO_TOKEN not found in Streamlit Secrets.")
     st.stop()
+
+# ── Password gate ──
+if APP_PASSWORD:
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        st.markdown("""
+        <style>
+        .login-box {
+            max-width: 380px; margin: 120px auto; padding: 40px 44px;
+            background: white; border-radius: 20px;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+            text-align: center;
+        }
+        .login-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.5rem; color: #005f46; margin-bottom: 6px;
+        }
+        .login-sub {
+            font-size: 0.82rem; color: #888; margin-bottom: 24px;
+        }
+        </style>
+        <div class="login-box">
+          <div class="login-title">ICI Dashboard</div>
+          <div class="login-sub">International Childbirth Initiative</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        pwd = st.text_input("🔑 Password", type="password", label_visibility="collapsed",
+                            placeholder="Enter password…")
+        col1, col2, col3 = st.columns([1,1,1])
+        if col2.button("Enter", use_container_width=True):
+            if pwd == APP_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+        st.stop()
 
 # ════════════════════════════════════════════════════════════
 # COLORBLIND-SAFE PALETTE  (Okabe-Ito, used by Nature/Science)
