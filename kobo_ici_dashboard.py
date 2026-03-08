@@ -14,9 +14,16 @@ from datetime import datetime
 # ─────────────────────────────────────────
 # CONFIGURATION
 # ─────────────────────────────────────────
-KOBO_TOKEN = "c9a5fc9b8cd8189d3d2059c7c7ee95ba179441df"
-ASSET_UID  = "aT3kXmLeYLtUC6zVAV5abW"
-BASE_URL   = "https://eu.kobotoolbox.org"
+ASSET_UID = "aT3kXmLeYLtUC6zVAV5abW"
+BASE_URL  = "https://eu.kobotoolbox.org"
+
+# Token is read from Streamlit Cloud Secrets — safe for public repos
+try:
+    KOBO_TOKEN = st.secrets["KOBO_TOKEN"]
+except Exception:
+    KOBO_TOKEN = ""
+    st.error("⚠️ KOBO_TOKEN not found. Add it to Streamlit Secrets in Advanced Settings.")
+    st.stop()
 # ─────────────────────────────────────────
 
 METHOD_MAP = {
