@@ -503,6 +503,29 @@ if "no_deliveries" in df.columns:
     fig.update_xaxes(showgrid=False); fig.update_yaxes(gridcolor="#eeeeee")
     c2.plotly_chart(fig, use_container_width=True)
 
+# ── Treemap: birth method × satisfaction ──
+if "method_label" in df.columns and "satisfaction_label" in df.columns:
+    tm = df[df["method"].isin([1,2,3,4,5]) & df["satisfaction"].isin([1,2,3,4,5])].copy()
+    tm["method_label2"] = tm["method_label"]
+    tm["sat_label2"]    = tm["satisfaction_label"]
+    tm_grp = tm.groupby(["method_label2","sat_label2"]).size().reset_index(name="n")
+    tm_grp["all"] = "All births"
+    treemap_title = {"EN":"Satisfaction by Birth Method","FR":"Satisfaction par mode d'accouchement"}[lang]
+    fig = px.treemap(tm_grp, path=["all","method_label2","sat_label2"], values="n",
+                     color="n", color_continuous_scale=[[0,VERMILION],[0.5,ORANGE],[1,TEAL]],
+                     labels={"n":t("responses",lang)})
+    fig.update_traces(textinfo="label+percent root", textfont_size=13)
+    fig.update_layout(
+        title=dict(text=treemap_title,
+                   font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
+                   x=0, xanchor="left", y=0.98, yanchor="top"),
+        margin=dict(t=44,b=8,l=8,r=8), height=340,
+        paper_bgcolor="white",
+        font=dict(family="DM Sans, sans-serif"),
+        coloraxis_showscale=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
 # ════════════════════════════════════════════════════════════
 # PANEL 4 — Likert
 # ════════════════════════════════════════════════════════════
@@ -526,6 +549,59 @@ if rows:
         margin=dict(t=8,b=110,l=8,r=8), height=480,
         plot_bgcolor="white", paper_bgcolor="white",
         font=dict(family="DM Sans, sans-serif"))
+    st.plotly_chart(fig, use_container_width=True)
+
+# ════════════════════════════════════════════════════════════
+# PANEL 4b — Radar: Quality of care by birth method
+# ════════════════════════════════════════════════════════════
+if "method" in df.columns:
+    radar_title = {"EN":"Quality of Care by Birth Method — Radar",
+                   "FR":"Qualité des soins par mode d'accouchement — Radar"}[lang]
+    likert_cols = ["introduction","spoke","communication","privacy","respect","values","positive","morale","coop"]
+    likert_labels = list(LIKERT_QS[lang].values())
+    method_filter = {1: METHOD_MAP[lang][1], 3: METHOD_MAP[lang][3], 4: METHOD_MAP[lang][4]}
+    radar_colors  = [TEAL, BLUISH, VERMILION]
+
+    dff = df[df["method"].isin(method_filter.keys())].copy()
+    for col in likert_cols:
+        dff[col] = pd.to_numeric(dff[col], errors="coerce")
+
+    fig = go.Figure()
+    for (mcode, mlabel), color in zip(method_filter.items(), radar_colors):
+        sub = dff[dff["method"]==mcode]
+        means = [sub[c].mean() for c in likert_cols]
+        means_closed = means + [means[0]]
+        labels_closed = likert_labels + [likert_labels[0]]
+        fig.add_trace(go.Scatterpolar(
+            r=means_closed, theta=labels_closed,
+            fill="toself", name=mlabel,
+            line=dict(color=color, width=2),
+            fillcolor=color.replace("#","") if False else color,
+            opacity=0.18 if False else 1,
+        ))
+        # filled version
+        fig.add_trace(go.Scatterpolar(
+            r=means_closed, theta=labels_closed,
+            fill="toself", name=None, showlegend=False,
+            line=dict(color=color, width=0),
+            fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.10)",
+        ))
+
+    fig.update_layout(
+        title=dict(text=radar_title,
+                   font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
+                   x=0, xanchor="left"),
+        polar=dict(
+            radialaxis=dict(visible=True, range=[3.5,5], tickfont=dict(size=9), gridcolor="#dddddd"),
+            angularaxis=dict(tickfont=dict(size=10)),
+            bgcolor="white",
+        ),
+        legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center", font=dict(size=11)),
+        margin=dict(t=60,b=80,l=60,r=60), height=460,
+        paper_bgcolor="white",
+        font=dict(family="DM Sans, sans-serif"),
+        showlegend=True,
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
@@ -617,6 +693,81 @@ if "rooming_label" in df.columns:
     fig=px.pie(ro, names="r", values="n", hole=0.52, color_discrete_sequence=PIE_COLORS)
     fig=clean_layout(fig, title=t("c_rooming",lang), height=270, legend_below=True)
     c3.plotly_chart(fig, use_container_width=True)
+
+# ════════════════════════════════════════════════════════════
+# PANEL 6b — Sankey: Care journey (birth method → episiotomy → satisfaction)
+# ════════════════════════════════════════════════════════════
+if "method" in df.columns and "epi" in df.columns and "satisfaction" in df.columns:
+    sankey_title = {"EN":"Care Journey: Birth Method → Episiotomy → Satisfaction",
+                    "FR":"Parcours de soins : Mode d'accouchement → Épisiotomie → Satisfaction"}[lang]
+
+    # Only rows with valid values
+    sk = df[df["method"].isin([1,2,3,4]) & df["epi"].isin([1,2,3,4]) & df["satisfaction"].isin([4,5])].copy()
+    sk2= df[df["method"].isin([1,2,3,4]) & df["epi"].isin([1,2,3,4]) & df["satisfaction"].isin([1,2,3])].copy()
+
+    method_lbl  = {1:METHOD_MAP[lang][1], 2:METHOD_MAP[lang][2],
+                   3:METHOD_MAP[lang][3], 4:METHOD_MAP[lang][4]}
+    epi_lbl     = {1:EPI_MAP[lang][1], 2:EPI_MAP[lang][2],
+                   3:EPI_MAP[lang][3], 4:EPI_MAP[lang][4]}
+    sat_lbl     = {"pos": {"EN":"😊 Satisfied","FR":"😊 Satisfaite"}[lang],
+                   "neg": {"EN":"😔 Not satisfied","FR":"😔 Pas satisfaite"}[lang]}
+
+    # Build node list: methods (0-3), epi options (4-7), sat outcomes (8-9)
+    method_nodes = [method_lbl[k] for k in [1,2,3,4]]
+    epi_nodes    = [epi_lbl[k] for k in [1,2,3,4]]
+    sat_nodes    = [sat_lbl["pos"], sat_lbl["neg"]]
+    all_nodes    = method_nodes + epi_nodes + sat_nodes
+    node_idx     = {v:i for i,v in enumerate(all_nodes)}
+
+    m_offset, e_offset, s_offset = 0, 4, 8
+
+    sources, targets, values, link_colors = [], [], [], []
+
+    full = df[df["method"].isin([1,2,3,4]) & df["epi"].isin([1,2,3,4]) & df["satisfaction"].isin([1,2,3,4,5])].copy()
+    for (mcode, ecode), grp in full.groupby(["method","epi"]):
+        if mcode not in method_lbl or ecode not in epi_lbl: continue
+        sources.append(mcode-1)         # method node index
+        targets.append(e_offset + ecode-1)  # epi node index
+        values.append(len(grp))
+        link_colors.append(f"rgba(0,158,115,0.25)")
+
+    for (ecode, scode_grp), grp in full.groupby(["epi","satisfaction"]):
+        if ecode not in epi_lbl: continue
+        sat_idx = s_offset + (0 if scode_grp >= 4 else 1)
+        sources.append(e_offset + ecode-1)
+        targets.append(sat_idx)
+        values.append(len(grp))
+        link_colors.append("rgba(0,114,178,0.20)" if scode_grp >= 4 else "rgba(213,94,0,0.20)")
+
+    node_colors = (
+        [TEAL]*4 +          # methods
+        [BLUISH, VERMILION, ORANGE, SKY] +  # epi options
+        [TEAL, VERMILION]   # satisfaction
+    )
+
+    fig = go.Figure(go.Sankey(
+        arrangement="snap",
+        node=dict(
+            pad=18, thickness=22,
+            line=dict(color="white", width=0.5),
+            label=all_nodes,
+            color=node_colors,
+            hovertemplate="%{label}<br>%{value} women<extra></extra>",
+        ),
+        link=dict(
+            source=sources, target=targets, value=values,
+            color=link_colors,
+        )
+    ))
+    fig.update_layout(
+        title=dict(text=sankey_title,
+                   font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
+                   x=0, xanchor="left"),
+        margin=dict(t=50,b=16,l=8,r=8), height=440,
+        paper_bgcolor="white",
+        font=dict(family="DM Sans, sans-serif", size=11),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
 # PANEL 7 — Satisfaction
