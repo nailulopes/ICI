@@ -364,10 +364,9 @@ if "_submission_time" in df.columns and df["_submission_time"].notna().any():
 
     sm_idx = (months_fr if lang=="FR" else months_en).index(start_month) + 1
     em_idx = (months_fr if lang=="FR" else months_en).index(end_month) + 1
-    import datetime
-    start_dt = datetime.date(start_year, sm_idx, 1)
     import calendar
-    end_dt   = datetime.date(end_year, em_idx, calendar.monthrange(end_year, em_idx)[1])
+    start_dt = datetime(start_year, sm_idx, 1).date()
+    end_dt   = datetime(end_year, em_idx, calendar.monthrange(end_year, em_idx)[1]).date()
     df = df[(df["_submission_time"].dt.date >= start_dt) & (df["_submission_time"].dt.date <= end_dt)]
 if "method_label" in df.columns:
     opts=[t("all",lang)]+sorted(df["method_label"].dropna().unique().tolist())
@@ -762,12 +761,14 @@ if "risk" in df.columns and "method" in df.columns and "skin_int" in df.columns:
 
     fig = go.Figure(go.Sankey(
         arrangement="snap",
-        node=dict(pad=16, thickness=20,
+        node=dict(pad=20, thickness=24,
                   line=dict(color="white", width=0.5),
                   label=all_nodes, color=node_colors,
-                  hovertemplate="%{label}<br>%{value} women<extra></extra>"),
+                  hovertemplate="%{label}<br>%{value} women<extra></extra>",
+                  ),
         link=dict(source=sources, target=targets, value=values, color=colors)
     ))
+    fig.update_traces(textfont=dict(size=13, family="DM Sans, sans-serif", color="#1a1a1a"))
     fig.update_layout(
         title=dict(text=sk_title,
                    font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
