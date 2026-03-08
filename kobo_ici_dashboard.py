@@ -308,11 +308,7 @@ h1,h2,h3{{font-family:'DM Serif Display',serif;}}
   margin-top:5px; line-height:1.3;
 }}
 .hero-stat-bad {{ background:rgba(213,94,0,0.25); }}
-/* .hero-logo removed */{
-  position:absolute; right:40px; top:50%;
-  transform:translateY(-50%); opacity:0.18;
-  width:140px;
-}}
+
 
 /* ── Section titles ── */
 .section-title {{
