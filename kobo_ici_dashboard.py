@@ -503,28 +503,43 @@ if "no_deliveries" in df.columns:
     fig.update_xaxes(showgrid=False); fig.update_yaxes(gridcolor="#eeeeee")
     c2.plotly_chart(fig, use_container_width=True)
 
-# ── Treemap: birth method × satisfaction ──
-if "method_label" in df.columns and "satisfaction_label" in df.columns:
-    tm = df[df["method"].isin([1,2,3,4,5]) & df["satisfaction"].isin([1,2,3,4,5])].copy()
-    tm["method_label2"] = tm["method_label"]
-    tm["sat_label2"]    = tm["satisfaction_label"]
-    tm_grp = tm.groupby(["method_label2","sat_label2"]).size().reset_index(name="n")
-    tm_grp["all"] = "All births"
-    treemap_title = {"EN":"Satisfaction by Birth Method","FR":"Satisfaction par mode d'accouchement"}[lang]
-    fig = px.treemap(tm_grp, path=["all","method_label2","sat_label2"], values="n",
-                     color="n", color_continuous_scale=[[0,VERMILION],[0.5,ORANGE],[1,TEAL]],
-                     labels={"n":t("responses",lang)})
-    fig.update_traces(textinfo="label+percent root", textfont_size=13)
-    fig.update_layout(
-        title=dict(text=treemap_title,
-                   font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
-                   x=0, xanchor="left", y=0.98, yanchor="top"),
-        margin=dict(t=44,b=8,l=8,r=8), height=340,
-        paper_bgcolor="white",
-        font=dict(family="DM Sans, sans-serif"),
-        coloraxis_showscale=False,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+# ── Treemap: birth method × emotional experience ──
+if "method_label" in df.columns and "emotion" in df.columns:
+    treemap_title = {"EN":"Emotional Experience by Birth Method",
+                     "FR":"Vécu émotionnel par mode d'accouchement"}[lang]
+    pos_keys = [1,4,6,7,9,11]
+    neg_keys = [2,3,5,8,10,12]
+    pos_lbl = {"EN":"Positive emotions","FR":"Émotions positives"}[lang]
+    neg_lbl = {"EN":"Negative emotions","FR":"Émotions négatives"}[lang]
+    root_lbl = {"EN":"All births","FR":"Tous accouchements"}[lang]
+
+    tm_rows = []
+    for mcode, mlabel in [(1,METHOD_MAP[lang][1]),(2,METHOD_MAP[lang][2]),
+                           (3,METHOD_MAP[lang][3]),(4,METHOD_MAP[lang][4]),(5,METHOD_MAP[lang][5])]:
+        sub = df[(df["method"]==mcode) & df["emotion"].notna()]
+        if len(sub) < 5: continue
+        pos_n = sum(parse_multiselect(sub["emotion"],[k])[k] for k in pos_keys)
+        neg_n = sum(parse_multiselect(sub["emotion"],[k])[k] for k in neg_keys)
+        tm_rows.append({"method": mlabel, "type": pos_lbl, "n": pos_n, "root": root_lbl})
+        tm_rows.append({"method": mlabel, "type": neg_lbl, "n": neg_n, "root": root_lbl})
+
+    if tm_rows:
+        tmdf = pd.DataFrame(tm_rows)
+        fig = px.treemap(tmdf, path=["root","method","type"], values="n",
+                         color="type",
+                         color_discrete_map={pos_lbl: TEAL, neg_lbl: VERMILION},
+                         labels={"n": t("responses",lang)})
+        fig.update_traces(textinfo="label+percent parent", textfont_size=12)
+        fig.update_layout(
+            title=dict(text=treemap_title,
+                       font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
+                       x=0, xanchor="left", y=0.98, yanchor="top"),
+            margin=dict(t=44,b=8,l=8,r=8), height=360,
+            paper_bgcolor="white",
+            font=dict(family="DM Sans, sans-serif"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
 # PANEL 4 — Likert
@@ -552,55 +567,39 @@ if rows:
     st.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
-# PANEL 4b — Radar: Quality of care by birth method
+# PANEL 4b — Bubble: age group × parity × count
 # ════════════════════════════════════════════════════════════
-if "method" in df.columns:
-    radar_title = {"EN":"Quality of Care by Birth Method — Radar",
-                   "FR":"Qualité des soins par mode d'accouchement — Radar"}[lang]
-    likert_cols = ["introduction","spoke","communication","privacy","respect","values","positive","morale","coop"]
-    likert_labels = list(LIKERT_QS[lang].values())
-    method_filter = {1: METHOD_MAP[lang][1], 3: METHOD_MAP[lang][3], 4: METHOD_MAP[lang][4]}
-    radar_colors  = [TEAL, BLUISH, VERMILION]
+if "age" in df.columns and "no_deliveries" in df.columns:
+    bubble_title = {"EN":"Respondent Profile — Age × Number of Previous Deliveries",
+                    "FR":"Profil des répondantes — Âge × Nombre d'accouchements précédents"}[lang]
+    bdf = df.copy()
+    bdf["age_grp"] = pd.cut(bdf["age"], bins=[0,24,29,34,39,99],
+                             labels=["<25","25–29","30–34","35–39","40+"])
+    bdf["nd"] = pd.to_numeric(bdf["no_deliveries"], errors="coerce")
+    bdf.loc[bdf["nd"]>6,"nd"] = pd.NA
+    bubble = bdf.dropna(subset=["age_grp","nd"]).groupby(["age_grp","nd"]).size().reset_index(name="n")
+    bubble["nd_str"] = bubble["nd"].astype(int).astype(str)
+    bubble["pct"] = (bubble["n"]/bubble["n"].sum()*100).round(1)
 
-    dff = df[df["method"].isin(method_filter.keys())].copy()
-    for col in likert_cols:
-        dff[col] = pd.to_numeric(dff[col], errors="coerce")
-
-    fig = go.Figure()
-    for (mcode, mlabel), color in zip(method_filter.items(), radar_colors):
-        sub = dff[dff["method"]==mcode]
-        means = [sub[c].mean() for c in likert_cols]
-        means_closed = means + [means[0]]
-        labels_closed = likert_labels + [likert_labels[0]]
-        fig.add_trace(go.Scatterpolar(
-            r=means_closed, theta=labels_closed,
-            fill="toself", name=mlabel,
-            line=dict(color=color, width=2),
-            fillcolor=color.replace("#","") if False else color,
-            opacity=0.18 if False else 1,
-        ))
-        # filled version
-        fig.add_trace(go.Scatterpolar(
-            r=means_closed, theta=labels_closed,
-            fill="toself", name=None, showlegend=False,
-            line=dict(color=color, width=0),
-            fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.10)",
-        ))
-
+    fig = px.scatter(bubble, x="age_grp", y="nd_str", size="n",
+                     color="n",
+                     color_continuous_scale=[[0,"#e8f4f0"],[0.4,SKY],[1,TEAL]],
+                     size_max=55,
+                     labels={"age_grp": {"EN":"Age group","FR":"Groupe d'âge"}[lang],
+                             "nd_str":  {"EN":"Previous deliveries","FR":"Accouchements précédents"}[lang],
+                             "n":       t("responses",lang)},
+                     hover_data={"n":True,"pct":True,"age_grp":True,"nd_str":True})
     fig.update_layout(
-        title=dict(text=radar_title,
+        title=dict(text=bubble_title,
                    font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
-                   x=0, xanchor="left"),
-        polar=dict(
-            radialaxis=dict(visible=True, range=[3.5,5], tickfont=dict(size=9), gridcolor="#dddddd"),
-            angularaxis=dict(tickfont=dict(size=10)),
-            bgcolor="white",
-        ),
-        legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center", font=dict(size=11)),
-        margin=dict(t=60,b=80,l=60,r=60), height=460,
-        paper_bgcolor="white",
+                   x=0, xanchor="left", y=0.98, yanchor="top"),
+        margin=dict(t=44,b=16,l=8,r=8), height=360,
+        plot_bgcolor="white", paper_bgcolor="white",
+        coloraxis_showscale=False,
         font=dict(family="DM Sans, sans-serif"),
-        showlegend=True,
+        xaxis=dict(showgrid=True, gridcolor="#eeeeee"),
+        yaxis=dict(showgrid=True, gridcolor="#eeeeee",
+                   title={"EN":"Previous deliveries","FR":"Accouchements précédents"}[lang]),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -690,80 +689,72 @@ if "comfort_label" in df.columns:
     c2.plotly_chart(fig, use_container_width=True)
 if "rooming_label" in df.columns:
     ro=df["rooming_label"].value_counts().reset_index(); ro.columns=["r","n"]
-    fig=px.pie(ro, names="r", values="n", hole=0.52, color_discrete_sequence=PIE_COLORS)
-    fig=clean_layout(fig, title=t("c_rooming",lang), height=270, legend_below=True)
+    fig=px.bar(ro, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL],
+               labels={"r":"","n":t("responses",lang)})
+    fig=clean_layout(fig, title=t("c_rooming",lang), height=270)
+    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c3.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════
-# PANEL 6b — Sankey: Care journey (birth method → episiotomy → satisfaction)
+# PANEL 6b — Sankey: Risk → Birth method → Skin-to-skin
 # ════════════════════════════════════════════════════════════
-if "method" in df.columns and "epi" in df.columns and "satisfaction" in df.columns:
-    sankey_title = {"EN":"Care Journey: Birth Method → Episiotomy → Satisfaction",
-                    "FR":"Parcours de soins : Mode d'accouchement → Épisiotomie → Satisfaction"}[lang]
+if "risk" in df.columns and "method" in df.columns and "skin_int" in df.columns:
+    sk_title = {"EN":"Care Journey: Risk Profile → Birth Method → Skin-to-Skin Contact",
+                "FR":"Parcours : Profil de risque → Mode d'accouchement → Peau à peau"}[lang]
 
-    # Only rows with valid values
-    sk = df[df["method"].isin([1,2,3,4]) & df["epi"].isin([1,2,3,4]) & df["satisfaction"].isin([4,5])].copy()
-    sk2= df[df["method"].isin([1,2,3,4]) & df["epi"].isin([1,2,3,4]) & df["satisfaction"].isin([1,2,3])].copy()
+    risk_lbl   = {1: {"EN":"High-risk","FR":"Grossesse à risque"}[lang],
+                  2: {"EN":"Low-risk","FR":"Grossesse normale"}[lang]}
+    method_lbl = {1:METHOD_MAP[lang][1], 2:METHOD_MAP[lang][2],
+                  3:METHOD_MAP[lang][3], 4:METHOD_MAP[lang][4]}
+    skin_lbl   = {1: {"EN":"✓ Immediate skin-to-skin","FR":"✓ Peau à peau immédiat"}[lang],
+                  0: {"EN":"✗ Not immediate / No","FR":"✗ Pas immédiat / Non"}[lang]}
 
-    method_lbl  = {1:METHOD_MAP[lang][1], 2:METHOD_MAP[lang][2],
-                   3:METHOD_MAP[lang][3], 4:METHOD_MAP[lang][4]}
-    epi_lbl     = {1:EPI_MAP[lang][1], 2:EPI_MAP[lang][2],
-                   3:EPI_MAP[lang][3], 4:EPI_MAP[lang][4]}
-    sat_lbl     = {"pos": {"EN":"😊 Satisfied","FR":"😊 Satisfaite"}[lang],
-                   "neg": {"EN":"😔 Not satisfied","FR":"😔 Pas satisfaite"}[lang]}
+    fdf = df[df["risk"].isin([1,2]) & df["method"].isin([1,2,3,4])].copy()
+    fdf["skin_bin"] = (fdf["skin_int"]==1).astype(int)
 
-    # Build node list: methods (0-3), epi options (4-7), sat outcomes (8-9)
+    risk_nodes   = [risk_lbl[1], risk_lbl[2]]
     method_nodes = [method_lbl[k] for k in [1,2,3,4]]
-    epi_nodes    = [epi_lbl[k] for k in [1,2,3,4]]
-    sat_nodes    = [sat_lbl["pos"], sat_lbl["neg"]]
-    all_nodes    = method_nodes + epi_nodes + sat_nodes
-    node_idx     = {v:i for i,v in enumerate(all_nodes)}
+    skin_nodes   = [skin_lbl[1], skin_lbl[0]]
+    all_nodes = risk_nodes + method_nodes + skin_nodes
+    R, M, S = 0, 2, 6  # offsets
 
-    m_offset, e_offset, s_offset = 0, 4, 8
+    sources, targets, values, colors = [], [], [], []
 
-    sources, targets, values, link_colors = [], [], [], []
+    # risk → method
+    for r in [1,2]:
+        for m in [1,2,3,4]:
+            n = len(fdf[(fdf["risk"]==r)&(fdf["method"]==m)])
+            if n==0: continue
+            sources.append(R + (r-1))
+            targets.append(M + [1,2,3,4].index(m))
+            values.append(n)
+            colors.append(f"rgba(0,158,115,0.2)" if r==2 else f"rgba(213,94,0,0.2)")
 
-    full = df[df["method"].isin([1,2,3,4]) & df["epi"].isin([1,2,3,4]) & df["satisfaction"].isin([1,2,3,4,5])].copy()
-    for (mcode, ecode), grp in full.groupby(["method","epi"]):
-        if mcode not in method_lbl or ecode not in epi_lbl: continue
-        sources.append(mcode-1)         # method node index
-        targets.append(e_offset + ecode-1)  # epi node index
-        values.append(len(grp))
-        link_colors.append(f"rgba(0,158,115,0.25)")
+    # method → skin
+    for m in [1,2,3,4]:
+        for s in [1,0]:
+            n = len(fdf[(fdf["method"]==m)&(fdf["skin_bin"]==s)])
+            if n==0: continue
+            sources.append(M + [1,2,3,4].index(m))
+            targets.append(S + (0 if s==1 else 1))
+            values.append(n)
+            colors.append("rgba(0,158,115,0.20)" if s==1 else "rgba(213,94,0,0.20)")
 
-    for (ecode, scode_grp), grp in full.groupby(["epi","satisfaction"]):
-        if ecode not in epi_lbl: continue
-        sat_idx = s_offset + (0 if scode_grp >= 4 else 1)
-        sources.append(e_offset + ecode-1)
-        targets.append(sat_idx)
-        values.append(len(grp))
-        link_colors.append("rgba(0,114,178,0.20)" if scode_grp >= 4 else "rgba(213,94,0,0.20)")
-
-    node_colors = (
-        [TEAL]*4 +          # methods
-        [BLUISH, VERMILION, ORANGE, SKY] +  # epi options
-        [TEAL, VERMILION]   # satisfaction
-    )
+    node_colors = [VERMILION, TEAL] + [BLUISH,SKY,ORANGE,PINK] + [TEAL, VERMILION]
 
     fig = go.Figure(go.Sankey(
         arrangement="snap",
-        node=dict(
-            pad=18, thickness=22,
-            line=dict(color="white", width=0.5),
-            label=all_nodes,
-            color=node_colors,
-            hovertemplate="%{label}<br>%{value} women<extra></extra>",
-        ),
-        link=dict(
-            source=sources, target=targets, value=values,
-            color=link_colors,
-        )
+        node=dict(pad=16, thickness=20,
+                  line=dict(color="white", width=0.5),
+                  label=all_nodes, color=node_colors,
+                  hovertemplate="%{label}<br>%{value} women<extra></extra>"),
+        link=dict(source=sources, target=targets, value=values, color=colors)
     ))
     fig.update_layout(
-        title=dict(text=sankey_title,
+        title=dict(text=sk_title,
                    font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
                    x=0, xanchor="left"),
-        margin=dict(t=50,b=16,l=8,r=8), height=440,
+        margin=dict(t=50,b=16,l=8,r=8), height=420,
         paper_bgcolor="white",
         font=dict(family="DM Sans, sans-serif", size=11),
     )
