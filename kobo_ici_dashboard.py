@@ -544,9 +544,14 @@ if "method_label" in df.columns and "emotion" in df.columns:
         tmdf = pd.DataFrame(tm_rows)
         fig = px.treemap(tmdf, path=["root","method","type"], values="n",
                          color="type",
-                         color_discrete_map={pos_lbl: "#7cc4b0", neg_lbl: "#e8a090"},
+                         color_discrete_map={pos_lbl: "#a8d8c8", neg_lbl: "#f0c4b0"},
                          labels={"n": t("responses",lang)})
-        fig.update_traces(textinfo="label+percent parent", textfont_size=12)
+        fig.update_traces(
+            textinfo="label+percent parent",
+            textfont=dict(size=12, family="DM Sans, sans-serif", color="#2a2a2a"),
+            marker=dict(line=dict(width=2, color="white"), cornerradius=5),
+            root_color="#f0f4f3",
+        )
         fig.update_layout(
             title=dict(text=treemap_title,
                        font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
