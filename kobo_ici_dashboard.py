@@ -256,7 +256,7 @@ def prep(df, lang):
         df["age_group"]=pd.cut(df["age"],bins=[0,19,24,29,34,39,99],labels=["<20","20–24","25–29","30–34","35–39","40+"])
     if "weeks" in df.columns:
         df["weeks_clean"]=to_int(df["weeks"])
-        df.loc[~df["weeks_clean"].between(24,45),"weeks_clean"]=pd.NA
+        df.loc[~df["weeks_clean"].between(21,45),"weeks_clean"]=pd.NA
     if "no_deliveries" in df.columns:
         df["no_deliveries"]=to_int(df["no_deliveries"])
         df.loc[df["no_deliveries"]>10,"no_deliveries"]=pd.NA
@@ -276,9 +276,9 @@ def clean_layout(fig, title="", height=280, legend_below=False):
             x=0, xanchor="left",
             # yanchor top + explicit y keeps title strictly above chart
             y=0.98, yanchor="top",
-            pad=dict(b=0, t=0)
+            pad=dict(b=6, t=0)
         ),
-        margin=dict(t=44, b=b_margin, l=8, r=8),
+        margin=dict(t=64, b=b_margin, l=8, r=8),
         height=height,
         plot_bgcolor="white", paper_bgcolor="white",
         font=dict(family="DM Sans, sans-serif", size=11),
@@ -357,6 +357,16 @@ h1,h2,h3{{font-family:'DM Serif Display',serif;}}
   font-size:1.25rem; color:#1a1a1a;
   border-left:4px solid {TEAL};
   padding-left:14px; margin:32px 0 14px 0;
+}}
+
+/* ── Plotly modebar — keep below title, not on top of it ── */
+.modebar-container {{
+  top: auto !important;
+  bottom: 4px !important;
+}}
+.modebar {{
+  top: auto !important;
+  bottom: 0 !important;
 }}
 </style>""", unsafe_allow_html=True)
 
@@ -841,7 +851,7 @@ if "risk" in df.columns and "method" in df.columns and "skin_int" in df.columns:
         title=dict(text=sk_title,
                    font=dict(size=13,family="DM Serif Display, serif",color="#1a1a1a"),
                    x=0, xanchor="left"),
-        margin=dict(t=50,b=16,l=8,r=8), height=420,
+        margin=dict(t=64,b=16,l=8,r=8), height=420,
         paper_bgcolor="white",
         font=dict(family="DM Sans, sans-serif", size=11),
     )
@@ -880,7 +890,7 @@ if "emotion" in df.columns:
                labels={"Pct":t("pct",lang),"Emotion":""})
     fig.update_layout(
         legend=dict(orientation="h", y=-0.16, x=0.5, xanchor="center", font=dict(size=11)),
-        margin=dict(t=8,b=80,l=8,r=8), height=440,
+        margin=dict(t=16,b=80,l=8,r=8), height=440,
         plot_bgcolor="white", paper_bgcolor="white",
         font=dict(family="DM Sans, sans-serif"))
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
@@ -897,7 +907,7 @@ if "info" in df.columns:
     idf=pd.DataFrame(rows).sort_values("Pct")
     fig=px.bar(idf, x="Pct", y="Topic", orientation="h", color_discrete_sequence=[PINK],
                labels={"Pct":t("pct",lang),"Topic":""})
-    fig.update_layout(margin=dict(t=8,b=8,l=8,r=8), height=220,
+    fig.update_layout(margin=dict(t=16,b=8,l=8,r=8), height=220,
                       plot_bgcolor="white",paper_bgcolor="white",
                       font=dict(family="DM Sans, sans-serif"))
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
