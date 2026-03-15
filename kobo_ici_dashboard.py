@@ -378,6 +378,22 @@ def clean_layout(fig, title="", height=280, legend_below=False):
     return fig
 
 
+def add_pct_to_bar(fig, values, total):
+    """Add percentage labels to bar chart."""
+    pcts = [f"{v/total*100:.1f}%" for v in values]
+    fig.update_traces(text=pcts, textposition="auto", textfont=dict(size=10))
+    return fig
+
+
+def prepare_bar_data(series, total_n):
+    """Prepare value counts with percentage for bar charts."""
+    vc = series.value_counts().reset_index()
+    vc.columns = ["label", "n"]
+    vc["pct"] = (vc["n"] / total_n * 100).round(1)
+    vc["text"] = vc.apply(lambda r: f"{r['n']} ({r['pct']:.1f}%)", axis=1)
+    return vc
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG & GLOBAL CSS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -837,11 +853,15 @@ if "age" in df.columns and "no_deliveries" in df.columns:
 # PANEL 5 — Autonomy & Consent
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_autonomy", lang)}</div>', unsafe_allow_html=True)
+total_n = len(df)
 c1, c2 = st.columns(2)
 if "decisions_label" in df.columns:
     dc = df["decisions_label"].value_counts().reset_index()
     dc.columns = ["r", "n"]
-    fig = px.bar(dc, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)})
+    dc["pct"] = (dc["n"] / total_n * 100).round(1)
+    dc["text"] = dc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(dc, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=10))
     fig = clean_layout(fig, title=t("a_decisions", lang), height=270)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -849,8 +869,11 @@ if "decisions_label" in df.columns:
 if "exam_label" in df.columns:
     ec = df["exam_label"].value_counts().reset_index()
     ec.columns = ["r", "n"]
+    ec["pct"] = (ec["n"] / total_n * 100).round(1)
+    ec["text"] = ec.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
     color_map = {v: c for v, c in zip(ec["r"].tolist(), [TEAL, SKY, ORANGE, PINK, VERMILION])}
-    fig = px.bar(ec, x="n", y="r", orientation="h", color="r", color_discrete_map=color_map, labels={"r": "", "n": ""})
+    fig = px.bar(ec, x="n", y="r", orientation="h", color="r", color_discrete_map=color_map, labels={"r": "", "n": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=10))
     fig = clean_layout(fig, title=t("a_exam", lang), height=270)
     fig.update_layout(showlegend=False)
     fig.update_xaxes(gridcolor="#eeeeee")
@@ -861,7 +884,10 @@ c1, c2 = st.columns(2)
 if "epi_label" in df.columns:
     ep = df["epi_label"].value_counts().reset_index()
     ep.columns = ["r", "n"]
-    fig = px.bar(ep, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)})
+    ep["pct"] = (ep["n"] / total_n * 100).round(1)
+    ep["text"] = ep.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(ep, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=10))
     fig = clean_layout(fig, title=t("a_epi", lang), height=250)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -881,7 +907,10 @@ c1, c2, c3 = st.columns(3)
 if "skin_label" in df.columns:
     sk = df["skin_label"].value_counts().reset_index()
     sk.columns = ["r", "n"]
-    fig = px.bar(sk, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)})
+    sk["pct"] = (sk["n"] / total_n * 100).round(1)
+    sk["text"] = sk.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(sk, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("c_skin", lang), height=290)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -889,7 +918,10 @@ if "skin_label" in df.columns:
 if "bf_label" in df.columns:
     bf = df["bf_label"].value_counts().reset_index()
     bf.columns = ["r", "n"]
-    fig = px.bar(bf, x="n", y="r", orientation="h", color_discrete_sequence=[BLUISH], labels={"r": "", "n": ""})
+    bf["pct"] = (bf["n"] / total_n * 100).round(1)
+    bf["text"] = bf.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(bf, x="n", y="r", orientation="h", color_discrete_sequence=[BLUISH], labels={"r": "", "n": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("c_bf", lang), height=290)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -905,7 +937,10 @@ c1, c2, c3 = st.columns(3)
 if "pharma_label" in df.columns:
     ph = df["pharma_label"].value_counts().reset_index()
     ph.columns = ["r", "n"]
-    fig = px.bar(ph, x="n", y="r", orientation="h", color_discrete_sequence=[SKY], labels={"r": "", "n": ""})
+    ph["pct"] = (ph["n"] / total_n * 100).round(1)
+    ph["text"] = ph.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(ph, x="n", y="r", orientation="h", color_discrete_sequence=[SKY], labels={"r": "", "n": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("c_pharma", lang), height=270)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -913,7 +948,10 @@ if "pharma_label" in df.columns:
 if "comfort_label" in df.columns:
     co = df["comfort_label"].value_counts().reset_index()
     co.columns = ["r", "n"]
-    fig = px.bar(co, x="n", y="r", orientation="h", color_discrete_sequence=[ORANGE], labels={"r": "", "n": ""})
+    co["pct"] = (co["n"] / total_n * 100).round(1)
+    co["text"] = co.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(co, x="n", y="r", orientation="h", color_discrete_sequence=[ORANGE], labels={"r": "", "n": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("c_comfort", lang), height=270)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -921,7 +959,10 @@ if "comfort_label" in df.columns:
 if "rooming_label" in df.columns:
     ro = df["rooming_label"].value_counts().reset_index()
     ro.columns = ["r", "n"]
-    fig = px.bar(ro, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)})
+    ro["pct"] = (ro["n"] / total_n * 100).round(1)
+    ro["text"] = ro.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(ro, x="n", y="r", orientation="h", color_discrete_sequence=[TEAL], labels={"r": "", "n": t("responses", lang)}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("c_rooming", lang), height=270)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -1084,8 +1125,11 @@ for col, field, title in [(c1, "verbal_label", t("m_verbal", lang)), (c2, "phys_
     if field in df.columns:
         vc = df[field].value_counts().reset_index()
         vc.columns = ["r", "n"]
+        vc["pct"] = (vc["n"] / total_n * 100).round(1)
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
         color = VERMILION if field in ["verbal_label", "phys_label"] else BLUISH
-        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], labels={"r": "", "n": t("responses", lang)})
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], labels={"r": "", "n": t("responses", lang)}, text="text")
+        fig.update_traces(textposition="outside", textfont=dict(size=9))
         fig = clean_layout(fig, title=title, height=260)
         fig.update_xaxes(gridcolor="#eeeeee")
         fig.update_yaxes(showgrid=False)
