@@ -545,7 +545,6 @@ if LOGO_PATH.exists():
 sat_good = (df["satisfaction"].isin([4, 5])).sum() / len(df) * 100 if "satisfaction" in df.columns and len(df) > 0 else 0
 skin_imm = (df["skin_int"] == 1).sum() / len(df) * 100 if "skin_int" in df.columns and len(df) > 0 else 0
 exam_nc = (df["exam"].isin([2, 3, 4, 5])).sum() if "exam" in df.columns else 0
-epi_nc = (df["epi"] == 2).sum() if "epi" in df.columns else 0
 no_cost_info = (df["payment"] == 2).sum() / len(df) * 100 if "payment" in df.columns and len(df) > 0 else 0
 
 st.markdown(f"""
