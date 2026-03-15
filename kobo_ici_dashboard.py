@@ -695,6 +695,7 @@ if "_submission_time" in df.columns and df["_submission_time"].notna().any():
 # PANEL 3 — Profile
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_profile", lang)}</div>', unsafe_allow_html=True)
+total_n = len(df)
 c1, c2, c3 = st.columns(3)
 
 if "method_label" in df.columns:
@@ -707,7 +708,10 @@ if "method_label" in df.columns:
 if "age_group" in df.columns:
     ac = df["age_group"].value_counts().sort_index().reset_index()
     ac.columns = ["f", "n"]
-    fig = px.bar(ac, x="f", y="n", color_discrete_sequence=[BLUISH], labels={"f": "", "n": ""})
+    ac["pct"] = (ac["n"] / total_n * 100).round(1)
+    ac["text"] = ac.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(ac, x="f", y="n", color_discrete_sequence=[BLUISH], labels={"f": "", "n": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("p_age", lang), height=300)
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor="#eeeeee")
@@ -716,7 +720,10 @@ if "age_group" in df.columns:
 if "education_label" in df.columns:
     ec = df["education_label"].value_counts().reset_index()
     ec.columns = ["e", "n"]
-    fig = px.bar(ec, x="n", y="e", orientation="h", color_discrete_sequence=[PINK], labels={"e": "", "n": ""})
+    ec["pct"] = (ec["n"] / total_n * 100).round(1)
+    ec["text"] = ec.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+    fig = px.bar(ec, x="n", y="e", orientation="h", color_discrete_sequence=[PINK], labels={"e": "", "n": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("p_education", lang), height=300)
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
@@ -734,9 +741,12 @@ if "weeks_clean" in df.columns:
 
 if "no_deliveries" in df.columns:
     nd = df["no_deliveries"].dropna().value_counts().sort_index().reset_index()
-    nd.columns = ["n", "count"]
-    nd["n"] = nd["n"].astype(int).astype(str)
-    fig = px.bar(nd, x="n", y="count", color_discrete_sequence=[SKY], labels={"n": t("p_parity", lang), "count": ""})
+    nd.columns = ["nd", "count"]
+    nd["pct"] = (nd["count"] / total_n * 100).round(1)
+    nd["text"] = nd.apply(lambda x: f"{x['count']} ({x['pct']}%)", axis=1)
+    nd["nd"] = nd["nd"].astype(int).astype(str)
+    fig = px.bar(nd, x="nd", y="count", color_discrete_sequence=[SKY], labels={"nd": t("p_parity", lang), "count": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig = clean_layout(fig, title=t("p_parity", lang), height=260)
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor="#eeeeee")
@@ -853,7 +863,6 @@ if "age" in df.columns and "no_deliveries" in df.columns:
 # PANEL 5 — Autonomy & Consent
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_autonomy", lang)}</div>', unsafe_allow_html=True)
-total_n = len(df)
 c1, c2 = st.columns(2)
 if "decisions_label" in df.columns:
     dc = df["decisions_label"].value_counts().reset_index()
@@ -1041,7 +1050,10 @@ if "expect_label" in df.columns and "satisfaction_label" in df.columns:
     for col, field, title in [(c1, "expect_label", t("sat_expect", lang)), (c2, "satisfaction_label", t("sat_actual", lang))]:
         vc = df[field].value_counts().reindex(q_order, fill_value=0).reset_index()
         vc.columns = ["r", "n"]
-        fig = px.bar(vc, x="r", y="n", color="r", color_discrete_sequence=QUALITY_COLORS, labels={"r": "", "n": t("responses", lang)}, category_orders={"r": q_order})
+        vc["pct"] = (vc["n"] / total_n * 100).round(1)
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+        fig = px.bar(vc, x="r", y="n", color="r", color_discrete_sequence=QUALITY_COLORS, labels={"r": "", "n": t("responses", lang)}, category_orders={"r": q_order}, text="text")
+        fig.update_traces(textposition="outside", textfont=dict(size=9))
         fig = clean_layout(fig, title=title, height=310)
         fig.update_layout(showlegend=False)
         fig.update_xaxes(showgrid=False)
@@ -1108,9 +1120,11 @@ st.markdown(f'<div class="section-title">{t("s_discharge", lang)}</div>', unsafe
 if "info" in df.columns:
     info_labels = INFO_LABELS[lang]
     counts = parse_multiselect(df["info"], list(info_labels.keys()))
-    rows = [{"Topic": lbl, "Pct": round(counts[k] / len(df) * 100, 1)} for k, lbl in info_labels.items()]
+    rows = [{"Topic": lbl, "n": counts[k], "Pct": round(counts[k] / len(df) * 100, 1)} for k, lbl in info_labels.items()]
     idf = pd.DataFrame(rows).sort_values("Pct")
-    fig = px.bar(idf, x="Pct", y="Topic", orientation="h", color_discrete_sequence=[PINK], labels={"Pct": t("pct", lang), "Topic": ""})
+    idf["text"] = idf.apply(lambda x: f"{x['n']} ({x['Pct']}%)", axis=1)
+    fig = px.bar(idf, x="Pct", y="Topic", orientation="h", color_discrete_sequence=[PINK], labels={"Pct": t("pct", lang), "Topic": ""}, text="text")
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
     fig.update_layout(margin=dict(t=16, b=8, l=8, r=8), height=220, plot_bgcolor="white", paper_bgcolor="white", font=dict(family="DM Sans, sans-serif"))
     fig.update_xaxes(gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=False)
