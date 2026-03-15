@@ -116,6 +116,7 @@ L = {
                 "FR": "Initiative Internationale pour la Naissance — 12 étapes pour des soins de maternité sûrs et respectueux"},
     "filters": {"EN": "Filters", "FR": "Filtres"},
     "facility": {"EN": "Facility", "FR": "Établissement"},
+    "country": {"EN": "Country", "FR": "Pays"},
     "compare_mode": {"EN": "Compare facilities", "FR": "Comparer établissements"},
     "date_range": {"EN": "Date range", "FR": "Période"},
     "birth_method_f": {"EN": "Birth method", "FR": "Mode d'accouchement"},
@@ -435,21 +436,11 @@ df = prep(raw, lang)
 # ═══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ═══════════════════════════════════════════════════════════════════════════════
-# CSS to center sidebar images
-st.markdown("""
-<style>
-[data-testid="stSidebar"] [data-testid="stImage"] {
-    display: flex;
-    justify-content: center;
-}
-[data-testid="stSidebar"] [data-testid="stImage"] img {
-    margin: 0 auto;
-}
-</style>
-""", unsafe_allow_html=True)
-
+# Center logo using columns
 if LOGO_PATH.exists():
-    st.sidebar.image(str(LOGO_PATH), width=110)
+    col1, col2, col3 = st.sidebar.columns([1, 2, 1])
+    with col2:
+        st.image(str(LOGO_PATH), width=110)
 st.sidebar.markdown("""
 <div style="text-align:center; padding: 0 0 0 0;">
     <div style="font-family:'DM Serif Display',serif; font-size:1.05rem; color:#005f46; font-weight:600; line-height:1.3; margin-bottom:2px;">ICI Dashboard</div>
@@ -459,12 +450,22 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 st.sidebar.header(t("filters", lang))
 
-# Facility selection (always show, ready for multiple facilities)
+# Facility and Country selection
 facilities_available = df["_facility"].unique().tolist()
+countries_available = df["_country"].unique().tolist() if "_country" in df.columns else []
 compare_mode = False
 
 if len(facilities_available) > 1:
     compare_mode = st.sidebar.checkbox(t("compare_mode", lang), value=False)
+    
+    # Country filter (when multiple countries exist)
+    if len(countries_available) > 1:
+        selected_country = st.sidebar.selectbox(t("country", lang), options=[t("all", lang)] + countries_available)
+        if selected_country != t("all", lang):
+            df = df[df["_country"] == selected_country]
+            # Update facilities list after country filter
+            facilities_available = df["_facility"].unique().tolist()
+    
     if compare_mode:
         selected_facilities = st.sidebar.multiselect(t("facility", lang), options=facilities_available, default=facilities_available)
         if selected_facilities:
@@ -516,8 +517,11 @@ if st.sidebar.button(t("refresh", lang)):
     st.cache_data.clear()
     st.rerun()
 
+# Center footer logo
 if LOGO_PATH.exists():
-    st.sidebar.image(str(LOGO_PATH), width=85)
+    col1, col2, col3 = st.sidebar.columns([1, 2, 1])
+    with col2:
+        st.image(str(LOGO_PATH), width=85)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # HERO BANNER
