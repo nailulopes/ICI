@@ -1036,20 +1036,24 @@ if "emotion" in df.columns:
         for keys in parsed_per_row:
             if not keys:
                 continue
+            # Filter to only valid emotion keys
+            valid_keys = [k for k in keys if k in adjusted_counts]
+            if not valid_keys:
+                continue
             # If exhausted is selected AND there are other emotions, skip exhausted
-            if exhausted_key in keys:
-                if len(keys) == 1:
+            if exhausted_key in valid_keys:
+                if len(valid_keys) == 1:
                     # Exhausted was the only emotion — include it
                     adjusted_counts[exhausted_key] += 1
                     valid_responses += 1
                 else:
                     # Include all others except exhausted
-                    for k in keys:
+                    for k in valid_keys:
                         if k != exhausted_key:
                             adjusted_counts[k] += 1
                     valid_responses += 1
             else:
-                for k in keys:
+                for k in valid_keys:
                     adjusted_counts[k] += 1
                 valid_responses += 1
         
