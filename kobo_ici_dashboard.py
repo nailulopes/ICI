@@ -14,17 +14,19 @@ from datetime import datetime
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIG — Multiple Facilities
 # ═══════════════════════════════════════════════════════════════════════════════
+# Display names are generic (Facility A, B, C...) to protect facility identity
+# Internal names are for your reference only
 FACILITIES = {
-    "brazil_facility": {
-        "name": "Brazil Facility",
+    "facility_a": {
+        "name": "Facility A",  # Canada - displayed as generic name
         "asset_uid": "aT3kXmLeYLtUC6zVAV5abW",
-        "country": "Brazil",
+        "country": "Country A",
     },
     # Add more facilities here:
-    # "cartagena_hospital": {
-    #     "name": "Cartagena Hospital",
+    # "facility_b": {
+    #     "name": "Facility B",  # Cartagena
     #     "asset_uid": "YOUR_ASSET_UID_HERE",
-    #     "country": "Colombia",
+    #     "country": "Country B",
     # },
 }
 
@@ -139,11 +141,10 @@ L = {
     "s_clinical": {"EN": "Clinical Practices", "FR": "Pratiques cliniques"},
     "s_satisfaction": {"EN": "Satisfaction — Expectations vs. Reality", "FR": "Satisfaction — Attentes vs. Réalité"},
     "s_emotions": {"EN": "How Women Felt at the Time of Delivery", "FR": "Ressenti des femmes au moment de l'accouchement"},
-    "s_emotions_adjusted": {"EN": "Emotions (Adjusted)", "FR": "Émotions (Ajusté)"},
+    "s_emotions_all": {"EN": "All emotions", "FR": "Toutes les émotions"},
+    "s_emotions_no_exhausted": {"EN": "Excluding 'Exhausted'", "FR": "Sans 'Épuisée'"},
     "emo_note": {"EN": "Multiple emotions could be selected — bars show % of respondents who chose each one.",
                  "FR": "Plusieurs émotions pouvaient être sélectionnées — les barres montrent le % de répondantes ayant choisi chacune."},
-    "emo_adjusted_note": {"EN": "'Exhausted' included only when it was the sole emotion selected.",
-                          "FR": "'Épuisée' inclus uniquement si c'était la seule émotion sélectionnée."},
     "s_discharge": {"EN": "Information Provided Before Discharge", "FR": "Informations données avant la sortie"},
     "s_mistreat": {"EN": "Mistreatment & Respect", "FR": "Maltraitance et respect"},
     "kpi_total": {"EN": "Total responses", "FR": "Total réponses"},
@@ -433,6 +434,19 @@ df = prep(raw, lang)
 # ═══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ═══════════════════════════════════════════════════════════════════════════════
+# CSS to center sidebar images
+st.markdown("""
+<style>
+[data-testid="stSidebar"] [data-testid="stImage"] {
+    display: flex;
+    justify-content: center;
+}
+[data-testid="stSidebar"] [data-testid="stImage"] img {
+    margin: 0 auto;
+}
+</style>
+""", unsafe_allow_html=True)
+
 if LOGO_PATH.exists():
     st.sidebar.image(str(LOGO_PATH), width=110)
 st.sidebar.markdown("""
@@ -444,8 +458,10 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 st.sidebar.header(t("filters", lang))
 
-# Facility selection
+# Facility selection (always show, ready for multiple facilities)
 facilities_available = df["_facility"].unique().tolist()
+compare_mode = False
+
 if len(facilities_available) > 1:
     compare_mode = st.sidebar.checkbox(t("compare_mode", lang), value=False)
     if compare_mode:
@@ -457,7 +473,8 @@ if len(facilities_available) > 1:
         if selected_facility != t("all", lang):
             df = df[df["_facility"] == selected_facility]
 else:
-    compare_mode = False
+    # Show facility name even with single facility (informational)
+    st.sidebar.markdown(f"**{t('facility', lang)}:** {facilities_available[0]}" if facilities_available else "")
 
 # Date range filter
 if "_submission_time" in df.columns and df["_submission_time"].notna().any():
@@ -985,7 +1002,7 @@ if "expect_label" in df.columns and "satisfaction_label" in df.columns:
         col.plotly_chart(fig, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PANEL 8 — Emotions (with adjusted view)
+# PANEL 8 — Emotions (two views: all emotions, and excluding exhaustion)
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f'<div class="section-title">{t("s_emotions", lang)}</div>', unsafe_allow_html=True)
 st.caption(t("emo_note", lang))
@@ -993,59 +1010,49 @@ st.caption(t("emo_note", lang))
 if "emotion" in df.columns:
     emo_labels = EMOTION_LABELS[lang]
     pos = POSITIVE_EMO[lang]
+    exhausted_key = 5
+    exhausted_label = emo_labels[exhausted_key]
+    
+    # Count all emotions
     counts = parse_multiselect(df["emotion"], list(emo_labels.keys()))
-    rows = [{"Emotion": lbl, "Pct": round(counts[k] / len(df) * 100, 1), "Type": t("positive", lang) if lbl in pos else t("negative", lang)} for k, lbl in emo_labels.items()]
-    edf = pd.DataFrame(rows).sort_values("Pct", ascending=True)
-
-    tab1, tab2 = st.tabs([t("s_emotions", lang), t("s_emotions_adjusted", lang)])
-
-    with tab1:
-        fig = px.bar(edf, x="Pct", y="Emotion", color="Type", orientation="h",
-                     color_discrete_map={t("positive", lang): TEAL, t("negative", lang): VERMILION}, labels={"Pct": t("pct", lang), "Emotion": ""})
-        fig.update_layout(legend=dict(orientation="h", y=-0.16, x=0.5, xanchor="center", font=dict(size=11)),
-                          margin=dict(t=16, b=80, l=8, r=8), height=440, plot_bgcolor="white", paper_bgcolor="white", font=dict(family="DM Sans, sans-serif"))
+    
+    # All emotions
+    rows_all = [{"Emotion": lbl, "Pct": round(counts[k] / len(df) * 100, 1), 
+                 "Type": t("positive", lang) if lbl in pos else t("negative", lang)} 
+                for k, lbl in emo_labels.items()]
+    edf_all = pd.DataFrame(rows_all).sort_values("Pct", ascending=True)
+    
+    # Excluding exhausted
+    rows_no_exhaust = [{"Emotion": lbl, "Pct": round(counts[k] / len(df) * 100, 1), 
+                        "Type": t("positive", lang) if lbl in pos else t("negative", lang)} 
+                       for k, lbl in emo_labels.items() if k != exhausted_key]
+    edf_no_exhaust = pd.DataFrame(rows_no_exhaust).sort_values("Pct", ascending=True)
+    
+    c1, c2 = st.columns(2)
+    
+    with c1:
+        st.markdown(f"**{t('s_emotions_all', lang)}**")
+        fig = px.bar(edf_all, x="Pct", y="Emotion", color="Type", orientation="h",
+                     color_discrete_map={t("positive", lang): TEAL, t("negative", lang): VERMILION}, 
+                     labels={"Pct": t("pct", lang), "Emotion": ""})
+        fig.update_layout(legend=dict(orientation="h", y=-0.12, x=0.5, xanchor="center", font=dict(size=10)),
+                          margin=dict(t=8, b=60, l=8, r=8), height=420, plot_bgcolor="white", paper_bgcolor="white", 
+                          font=dict(family="DM Sans, sans-serif"))
         fig.update_xaxes(gridcolor="#eeeeee")
         fig.update_yaxes(showgrid=False)
         st.plotly_chart(fig, use_container_width=True)
-
-    with tab2:
-        st.caption(t("emo_adjusted_note", lang))
-        exhausted_key = 5
-        parsed_per_row = parse_multiselect_per_row(df["emotion"])
-        adjusted_counts = {k: 0 for k in emo_labels.keys()}
-        valid_responses = 0
-
-        for keys in parsed_per_row:
-            if not keys:
-                continue
-            valid_keys = [k for k in keys if k in adjusted_counts]
-            if not valid_keys:
-                continue
-            if exhausted_key in valid_keys:
-                if len(valid_keys) == 1:
-                    adjusted_counts[exhausted_key] += 1
-                    valid_responses += 1
-                else:
-                    for k in valid_keys:
-                        if k != exhausted_key:
-                            adjusted_counts[k] += 1
-                    valid_responses += 1
-            else:
-                for k in valid_keys:
-                    adjusted_counts[k] += 1
-                valid_responses += 1
-
-        if valid_responses > 0:
-            adj_rows = [{"Emotion": lbl, "Pct": round(adjusted_counts[k] / valid_responses * 100, 1),
-                         "Type": t("positive", lang) if lbl in pos else t("negative", lang)} for k, lbl in emo_labels.items()]
-            adj_edf = pd.DataFrame(adj_rows).sort_values("Pct", ascending=True)
-            fig2 = px.bar(adj_edf, x="Pct", y="Emotion", color="Type", orientation="h",
-                          color_discrete_map={t("positive", lang): TEAL, t("negative", lang): VERMILION}, labels={"Pct": t("pct", lang), "Emotion": ""})
-            fig2.update_layout(legend=dict(orientation="h", y=-0.16, x=0.5, xanchor="center", font=dict(size=11)),
-                               margin=dict(t=16, b=80, l=8, r=8), height=440, plot_bgcolor="white", paper_bgcolor="white", font=dict(family="DM Sans, sans-serif"))
-            fig2.update_xaxes(gridcolor="#eeeeee")
-            fig2.update_yaxes(showgrid=False)
-            st.plotly_chart(fig2, use_container_width=True)
+    
+    with c2:
+        st.markdown(f"**{t('s_emotions_no_exhausted', lang)}**")
+        fig2 = px.bar(edf_no_exhaust, x="Pct", y="Emotion", color="Type", orientation="h",
+                      color_discrete_map={t("positive", lang): TEAL, t("negative", lang): VERMILION}, 
+                      labels={"Pct": t("pct", lang), "Emotion": ""})
+        fig2.update_layout(legend=dict(orientation="h", y=-0.12, x=0.5, xanchor="center", font=dict(size=10)),
+                           margin=dict(t=8, b=60, l=8, r=8), height=420, plot_bgcolor="white", paper_bgcolor="white", 
+                           font=dict(family="DM Sans, sans-serif"))
+        fig2.update_xaxes(gridcolor="#eeeeee")
+        fig2.update_yaxes(showgrid=False)
+        st.plotly_chart(fig2, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PANEL 9 — Discharge Info
