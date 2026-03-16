@@ -155,6 +155,9 @@ L = {
     "kpi_epi": {"EN": "episiotomies w/o consent", "FR": "épisiotomies sans consentement"},
     "kpi_no_cost_info": {"EN": "did not know cost in advance", "FR": "ne connaissaient pas le coût à l'avance"},
     "kpi_staff_equipped": {"EN": "Staff well equipped", "FR": "Personnel bien équipé"},
+    "kpi_gest_range": {"EN": "gestational weeks (mean, range)", "FR": "semaines de gestation (moy., étendue)"},
+    "kpi_age_range": {"EN": "age in years (mean, range)", "FR": "âge en années (moy., étendue)"},
+    "kpi_elective_cs": {"EN": "elective caesarean", "FR": "césarienne élective"},
     "p_method": {"EN": "Birth method", "FR": "Mode d'accouchement"},
     "p_age": {"EN": "Age group", "FR": "Groupe d'âge"},
     "p_education": {"EN": "Education level", "FR": "Niveau d'éducation"},
@@ -543,9 +546,26 @@ if LOGO_PATH.exists():
 # HERO BANNER
 # ═══════════════════════════════════════════════════════════════════════════════
 sat_good = (df["satisfaction"].isin([4, 5])).sum() / len(df) * 100 if "satisfaction" in df.columns and len(df) > 0 else 0
-skin_imm = (df["skin_int"] == 1).sum() / len(df) * 100 if "skin_int" in df.columns and len(df) > 0 else 0
-exam_nc = (df["exam"].isin([2, 3, 4, 5])).sum() if "exam" in df.columns else 0
-no_cost_info = (df["payment"] == 2).sum() / len(df) * 100 if "payment" in df.columns and len(df) > 0 else 0
+
+# Gestational weeks: mean (min-max)
+if "weeks_clean" in df.columns and df["weeks_clean"].notna().sum() > 0:
+    gest_mean = df["weeks_clean"].mean()
+    gest_min = int(df["weeks_clean"].min())
+    gest_max = int(df["weeks_clean"].max())
+    gest_display = f"{gest_mean:.1f} ({gest_min}–{gest_max})"
+else:
+    gest_display = "–"
+
+# Age: mean (min-max)
+if "age" in df.columns and df["age"].notna().sum() > 0:
+    age_mean = df["age"].mean()
+    age_min = int(df["age"].min())
+    age_max = int(df["age"].max())
+    age_display = f"{age_mean:.0f} ({age_min}–{age_max})"
+else:
+    age_display = "–"
+
+elective_cs = (df["method"] == 3).sum() / len(df) * 100 if "method" in df.columns and len(df) > 0 else 0
 
 st.markdown(f"""
 <div class="hero">
@@ -561,16 +581,16 @@ st.markdown(f"""
             <div class="hero-stat-label">{t("kpi_positive", lang)}</div>
         </div>
         <div class="hero-stat">
-            <div class="hero-stat-num">{skin_imm:.0f}%</div>
-            <div class="hero-stat-label">{t("kpi_skin", lang)}</div>
+            <div class="hero-stat-num">{gest_display}</div>
+            <div class="hero-stat-label">{t("kpi_gest_range", lang)}</div>
         </div>
-        <div class="hero-stat hero-stat-bad">
-            <div class="hero-stat-num">{exam_nc}</div>
-            <div class="hero-stat-label">{t("kpi_exam", lang)}</div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">{age_display}</div>
+            <div class="hero-stat-label">{t("kpi_age_range", lang)}</div>
         </div>
-        <div class="hero-stat hero-stat-bad">
-            <div class="hero-stat-num">{no_cost_info:.0f}%</div>
-            <div class="hero-stat-label">{t("kpi_no_cost_info", lang)}</div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">{elective_cs:.0f}%</div>
+            <div class="hero-stat-label">{t("kpi_elective_cs", lang)}</div>
         </div>
     </div>
 </div>
