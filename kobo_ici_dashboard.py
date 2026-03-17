@@ -11,5 +11,6 @@ st.set_page_config(
 pg = st.navigation([
     st.Page("pages/women.py",     title="Women's Experience",    icon="👩"),
     st.Page("pages/companion.py", title="Companion Experience",  icon="🤝"),
+    st.Page("pages/debug.py",     title="Debug",                 icon="🔍"),
 ])
 pg.run()
