@@ -245,7 +245,7 @@ def sidebar_logo():
             st.image(str(LOGO_PATH), width=110)
 
 
-def sidebar_date_filter(df, lang):
+def sidebar_date_filter(df, lang, key_prefix="w"):
     """Render date-range filter in sidebar, return filtered df."""
     if "_submission_time" not in df.columns or df["_submission_time"].isna().all():
         return df
@@ -257,15 +257,17 @@ def sidebar_date_filter(df, lang):
                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     months_fr = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun",
                  "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
-    months = months_fr if lang == "FR" else months_en
-    lbl = {"EN": "Date range", "FR": "Période"}[lang]
+    months_es = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                 "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    months = months_fr if lang == "FR" else (months_es if lang == "ES" else months_en)
+    lbl = {"EN": "Date range", "FR": "Période", "ES": "Rango de fechas"}.get(lang, "Date range")
     st.sidebar.markdown(f"**{lbl}**")
     dc1, dc2 = st.sidebar.columns(2)
-    start_year  = dc1.selectbox("", years, index=0, key="sy_w", label_visibility="collapsed")
-    start_month = dc2.selectbox("", months, index=mn.month - 1, key="sm_w", label_visibility="collapsed")
+    start_year  = dc1.selectbox("", years, index=0, key=f"sy_{key_prefix}", label_visibility="collapsed")
+    start_month = dc2.selectbox("", months, index=mn.month - 1, key=f"sm_{key_prefix}", label_visibility="collapsed")
     dc3, dc4 = st.sidebar.columns(2)
-    end_year  = dc3.selectbox("", years, index=len(years) - 1, key="ey_w", label_visibility="collapsed")
-    end_month = dc4.selectbox("", months, index=mx.month - 1, key="em_w", label_visibility="collapsed")
+    end_year  = dc3.selectbox("", years, index=len(years) - 1, key=f"ey_{key_prefix}", label_visibility="collapsed")
+    end_month = dc4.selectbox("", months, index=mx.month - 1, key=f"em_{key_prefix}", label_visibility="collapsed")
     sm_idx = months.index(start_month) + 1
     em_idx = months.index(end_month) + 1
     start_dt = datetime(start_year, sm_idx, 1).date()
@@ -278,42 +280,43 @@ def sidebar_date_filter(df, lang):
 # BILINGUAL LABELS — WOMEN
 # ═══════════════════════════════════════════════════════════════════════════════
 L_W = {
-    "title":          {"EN": "Women's Experience Dashboard",     "FR": "Tableau de bord — Expérience des femmes"},
+    "title":          {"EN": "Women's Experience Dashboard",     "FR": "Tableau de bord — Expérience des femmes", "ES": "Panel de Experiencia de la Mujer"},
     "caption":        {"EN": "International Childbirth Initiative — 12 Steps to Safe and Respectful MotherBaby-Family Maternity Care",
-                       "FR": "Initiative Internationale pour la Naissance — 12 étapes pour des soins de maternité sûrs et respectueux"},
-    "filters":        {"EN": "Filters",              "FR": "Filtres"},
-    "facility":       {"EN": "Facility",             "FR": "Établissement"},
-    "country":        {"EN": "Country",              "FR": "Pays"},
-    "compare_mode":   {"EN": "Compare facilities",   "FR": "Comparer établissements"},
-    "birth_method_f": {"EN": "Birth method",         "FR": "Mode d'accouchement"},
-    "high_risk_f":    {"EN": "High-risk pregnancy",  "FR": "Grossesse à risque"},
+                       "FR": "Initiative Internationale pour la Naissance — 12 étapes pour des soins de maternité sûrs et respectueux",
+                       "ES": "Iniciativa Internacional para el Parto — 12 Pasos para una Atención Segura y Respetuosa"},
+    "filters":        {"EN": "Filters",              "FR": "Filtres",             "ES": "Filtros"},
+    "facility":       {"EN": "Facility",             "FR": "Établissement",       "ES": "Establecimiento"},
+    "country":        {"EN": "Country",              "FR": "Pays",                "ES": "País"},
+    "compare_mode":   {"EN": "Compare facilities",   "FR": "Comparer établissements", "ES": "Comparar establecimientos"},
+    "birth_method_f": {"EN": "Birth method",         "FR": "Mode d'accouchement", "ES": "Vía de nacimiento"},
+    "high_risk_f":    {"EN": "High-risk pregnancy",  "FR": "Grossesse à risque",  "ES": "Embarazo de alto riesgo"},
     "filtered":       {"EN": "Filtered responses",   "FR": "Réponses filtrées"},
     "refresh":        {"EN": "↻ Refresh data",        "FR": "↻ Actualiser"},
-    "responses":      {"EN": "Responses",            "FR": "Réponses"},
-    "pct":            {"EN": "% of respondents",     "FR": "% des répondantes"},
+    "responses":      {"EN": "Responses",            "FR": "Réponses",                       "ES": "Respuestas"},
+    "pct":            {"EN": "% of respondents",     "FR": "% des répondantes",              "ES": "% de encuestadas"},
     "download":       {"EN": "⬇ Download CSV",        "FR": "⬇ Télécharger CSV"},
     "raw_data":       {"EN": "📋 View raw data",      "FR": "📋 Voir les données brutes"},
-    "positive":       {"EN": "Positive",             "FR": "Positif"},
-    "negative":       {"EN": "Negative",             "FR": "Négatif"},
-    "all":            {"EN": "All",                  "FR": "Tous"},
-    "s_comparison":   {"EN": "Facility Comparison",  "FR": "Comparaison des établissements"},
-    "s_timeline":     {"EN": "Responses Over Time",  "FR": "Réponses dans le temps"},
+    "positive":       {"EN": "Positive",             "FR": "Positif",                        "ES": "Positivo"},
+    "negative":       {"EN": "Negative",             "FR": "Négatif",                        "ES": "Negativo"},
+    "all":            {"EN": "All",                  "FR": "Tous",                "ES": "Todos"},
+    "s_comparison":   {"EN": "Facility Comparison",  "FR": "Comparaison des établissements", "ES": "Comparación de establecimientos"},
+    "s_timeline":     {"EN": "Responses Over Time",  "FR": "Réponses dans le temps",         "ES": "Respuestas en el tiempo"},
     "s_trends":       {"EN": "Key Indicators Over Time", "FR": "Indicateurs clés dans le temps"},
-    "s_profile":      {"EN": "Respondent Profile",   "FR": "Profil des répondantes"},
+    "s_profile":      {"EN": "Respondent Profile",   "FR": "Profil des répondantes",         "ES": "Perfil de las encuestadas"},
     "s_likert":       {"EN": "Quality of Care — Likert Scales", "FR": "Qualité des soins — Échelles de Likert"},
     "s_likert_cap":   {"EN": "Response distribution across care dimensions (Always → Never)",
                        "FR": "Distribution des réponses par dimension de soins (Toujours → Jamais)"},
-    "s_autonomy":     {"EN": "Autonomy & Consent",   "FR": "Autonomie et consentement"},
-    "s_clinical":     {"EN": "Clinical Practices",   "FR": "Pratiques cliniques"},
+    "s_autonomy":     {"EN": "Autonomy & Consent",   "FR": "Autonomie et consentement",      "ES": "Autonomía y consentimiento"},
+    "s_clinical":     {"EN": "Clinical Practices",   "FR": "Pratiques cliniques",            "ES": "Prácticas clínicas"},
     "s_satisfaction": {"EN": "Satisfaction — Expectations vs. Reality", "FR": "Satisfaction — Attentes vs. Réalité"},
-    "s_emotions":     {"EN": "How Women Felt at the Time of Delivery", "FR": "Ressenti des femmes au moment de l'accouchement"},
+    "s_emotions":     {"EN": "How Women Felt at the Time of Delivery", "FR": "Ressenti des femmes au moment de l'accouchement", "ES": "Cómo se sintieron las mujeres en el parto"},
     "s_emotions_all": {"EN": "All emotions",         "FR": "Toutes les émotions"},
     "s_emotions_no_exhausted": {"EN": "Excluding 'Exhausted'", "FR": "Sans 'Épuisée'"},
     "emo_note":       {"EN": "Multiple emotions could be selected — bars show % of respondents who chose each one.",
                        "FR": "Plusieurs émotions pouvaient être sélectionnées — les barres montrent le % de répondantes ayant choisi chacune."},
-    "s_discharge":    {"EN": "Information Provided Before Discharge", "FR": "Informations données avant la sortie"},
-    "s_mistreat":     {"EN": "Mistreatment & Respect", "FR": "Maltraitance et respect"},
-    "kpi_total":      {"EN": "Total responses",      "FR": "Total réponses"},
+    "s_discharge":    {"EN": "Information Provided Before Discharge", "FR": "Informations données avant la sortie", "ES": "Información proporcionada antes del alta"},
+    "s_mistreat":     {"EN": "Mistreatment & Respect", "FR": "Maltraitance et respect",      "ES": "Maltrato y respeto"},
+    "kpi_total":      {"EN": "Total responses",      "FR": "Total réponses",                 "ES": "Total respuestas"},
     "kpi_positive":   {"EN": "rated care as Good or Very good", "FR": "ont évalué les soins comme Bons ou Très bons"},
     "kpi_skin":       {"EN": "had immediate skin-to-skin", "FR": "ont eu le peau à peau immédiat"},
     "kpi_gest_range": {"EN": "gestational weeks (mean, range)", "FR": "semaines de gestation (moy., étendue)"},
@@ -326,10 +329,10 @@ L_W = {
     "p_parity":       {"EN": "Number of previous deliveries", "FR": "Nombre d'accouchements précédents"},
     "mean_weeks":     {"EN": "Mean gest. weeks",     "FR": "Sem. gestation (moy.)"},
     "mean_age":       {"EN": "Mean age (min–max)",   "FR": "Âge moyen (min–max)"},
-    "grp_month":      {"EN": "Month",    "FR": "Mois"},
-    "grp_week":       {"EN": "Week",     "FR": "Semaine"},
-    "grp_day":        {"EN": "Day",      "FR": "Jour"},
-    "grp_by":         {"EN": "Group by", "FR": "Regrouper par"},
+    "grp_month":      {"EN": "Month",    "FR": "Mois",   "ES": "Mes"},
+    "grp_week":       {"EN": "Week",     "FR": "Semaine","ES": "Semana"},
+    "grp_day":        {"EN": "Day",      "FR": "Jour",   "ES": "Día"},
+    "grp_by":         {"EN": "Group by", "FR": "Regrouper par", "ES": "Agrupar por"},
     "tr_positive":    {"EN": "% Positive rating",            "FR": "% Évaluation positive"},
     "tr_skin":        {"EN": "% Immediate skin-to-skin",     "FR": "% Peau à peau immédiat"},
     "tr_exam":        {"EN": "% Vaginal exams w/o consent",  "FR": "% Examens vaginaux s.c."},
@@ -343,8 +346,8 @@ L_W = {
     "c_pharma":       {"EN": "Pain relief received", "FR": "Analgésie reçue"},
     "c_comfort":      {"EN": "Non-pharmacological comfort", "FR": "Confort non-pharmacologique"},
     "c_rooming":      {"EN": "Rooming-in (baby with mother)", "FR": "Cohabitation mère-bébé"},
-    "sat_expect":     {"EN": "Before I came here, I expected care to be:", "FR": "Avant de venir ici, je m'attendais à des soins :"},
-    "sat_actual":     {"EN": "Now, I feel that my care was:", "FR": "Maintenant, j'estime que mes soins étaient :"},
+    "sat_expect":     {"EN": "Before I came here, I expected care to be:", "FR": "Avant de venir ici, je m'attendais à des soins :", "ES": "Antes de venir, esperaba que los cuidados fueran:"},
+    "sat_actual":     {"EN": "Now, I feel that my care was:", "FR": "Maintenant, j'estime que mes soins étaient :", "ES": "Ahora, siento que los cuidados fueron:"},
     "m_verbal":       {"EN": "Verbal abuse",         "FR": "Violence verbale"},
     "m_phys":         {"EN": "Physical abuse",       "FR": "Violence physique"},
     "m_payment":      {"EN": "Informed of costs in advance", "FR": "Informée des coûts à l'avance"},
@@ -365,9 +368,10 @@ def tw(k, lang):
 # BILINGUAL LABELS — COMPANION
 # ═══════════════════════════════════════════════════════════════════════════════
 L_C = {
-    "title":        {"EN": "Companion Experience Dashboard",  "FR": "Tableau de bord — Expérience des acompagnants"},
+    "title":        {"EN": "Companion Experience Dashboard",  "FR": "Tableau de bord — Expérience des acompagnants", "ES": "Panel de Experiencia del Acompañante"},
     "caption":      {"EN": "International Childbirth Initiative — Companion Questionnaire",
-                     "FR": "Initiative Internationale pour la Naissance — Questionnaire acompagnant"},
+                     "FR": "Initiative Internationale pour la Naissance — Questionnaire acompagnant",
+                     "ES": "Iniciativa Internacional para el Parto — Cuestionario del Acompañante"},
     "filters":      {"EN": "Filters",             "FR": "Filtres"},
     "facility":     {"EN": "Facility",            "FR": "Établissement"},
     "filtered":     {"EN": "Filtered responses",  "FR": "Réponses filtrées"},
@@ -442,43 +446,54 @@ METHOD_MAP = {
            3: "Elective/planned caesarean (C/S)", 4: "Emergency caesarean (C/S)", 5: "VBAC", 0: "I don't know"},
     "FR": {1: "Vaginal", 2: "Vaginal assisté (forceps ou ventouse)",
            3: "Césarienne élective (planifiée) (C/S)", 4: "Césarienne d'urgence (C/S)", 5: "AVAC", 0: "Je ne sais pas"},
+    "ES": {1: "Vaginal", 2: "Vaginal asistido", 3: "Cesárea electiva", 4: "Cesárea de urgencia", 5: "PVAC", 0: "No sé"},
 }
 EDUCATION_MAP = {
     "EN": {1: "No formal schooling", 2: "Primary", 3: "Secondary", 4: "Higher than secondary"},
     "FR": {1: "Aucune", 2: "Primaire", 3: "Secondaire", 4: "Post-secondaire"},
+    "ES": {1: "Sin escolarización", 2: "Básica", 3: "Media", 4: "Educación Superior"},
 }
-RISK_MAP      = {"EN": {1: "Yes", 2: "No", 0: "I don't know"}, "FR": {1: "Oui", 2: "Non", 0: "Je ne sais pas"}}
+RISK_MAP      = {"EN": {1: "Yes", 2: "No", 0: "I don't know"}, "FR": {1: "Oui", 2: "Non", 0: "Je ne sais pas"}, "ES": {1: "Sí", 2: "No", 0: "No sé"}}
 LIKERT5_MAP   = {
     "EN": {5: "Always", 4: "Most of the time", 3: "Sometimes", 2: "Rarely", 1: "Never", 0: "I don't know/not applicable"},
     "FR": {5: "Toujours", 4: "La plupart du temps", 3: "Quelquefois", 2: "Rarement", 1: "Jamais", 0: "Je ne sais pas/non applicable"},
+    "ES": {5: "Siempre", 4: "La mayoría de las veces", 3: "A veces", 2: "Raramente", 1: "Nunca", 0: "No sé/no aplica"},
 }
 QUALITY_MAP   = {
     "EN": {5: "Very good", 4: "Good", 3: "Neutral", 2: "Poor", 1: "Very bad", 0: "I don't know"},
     "FR": {5: "Très bonne", 4: "Bon", 3: "Neutre", 2: "Mauvaise", 1: "Très mauvaise", 0: "Je ne sais pas"},
+    "ES": {5: "Muy buenos", 4: "Buenos", 3: "Neutral", 2: "Malos", 1: "Muy malos", 0: "No sé"},
 }
 QUALITY_ORDER = {
     "EN": ["Very bad", "Poor", "Neutral", "Good", "Very good", "I don't know"],
     "FR": ["Très mauvaise", "Mauvaise", "Neutre", "Bon", "Très bonne", "Je ne sais pas"],
+    "ES": ["Muy malos", "Malos", "Neutral", "Buenos", "Muy buenos", "No sé"],
 }
 DECISIONS_MAP = {
     "EN": {1: "Yes, included with enough information", 2: "Yes, included but not enough information",
            3: "Sometimes I was included", 4: "No, I was not included", 0: "I don't know/not applicable"},
     "FR": {1: "Oui, incluse avec suffisamment d'informations", 2: "Oui, incluse mais pas assez d'informations",
            3: "J'ai parfois été incluse", 4: "Non, je n'ai pas été incluse", 0: "Je ne sais pas/non applicable"},
+    "ES": {1: "Sí, incluida con suficiente información", 2: "Sí, incluida pero sin suficiente información",
+           3: "A veces estuve incluida", 4: "No, no estuve incluida", 0: "No sé/no aplica"},
 }
 EPI_MAP = {
     "EN": {1: "Yes, with my consent", 2: "Yes, without full explanation or consent",
            3: "No, because I declined", 4: "No, staff did not recommend it"},
     "FR": {1: "Oui, avec mon consentement", 2: "Oui, sans explication complète ou consentement",
            3: "Non, parce que j'ai refusé", 4: "Non, le personnel ne l'a pas recommandé"},
+    "ES": {1: "Sí, con mi consentimiento", 2: "Sí, sin explicación completa o consentimiento",
+           3: "No, porque lo rechacé", 4: "No, el personal no lo recomendó"},
 }
 EXAM_MAP = {
     "EN": {1: "Never without my consent", 2: "Rarely without consent", 3: "Sometimes without consent",
            4: "Frequently without consent", 5: "Always without consent"},
     "FR": {1: "Jamais sans mon consentement", 2: "Rarement sans consentement", 3: "Parfois sans consentement",
            4: "Fréquemment sans consentement", 5: "Toujours sans consentement"},
+    "ES": {1: "Nunca sin mi consentimiento", 2: "Raramente sin consentimiento", 3: "A veces sin consentimiento",
+           4: "Frecuentemente sin consentimiento", 5: "Siempre sin consentimiento"},
 }
-TREAT_MAP   = {"EN": {1: "Yes", 2: "No", 0: "I don't know"}, "FR": {1: "Oui", 2: "Non", 0: "Je ne sais pas"}}
+TREAT_MAP   = {"EN": {1: "Yes", 2: "No", 0: "I don't know"}, "FR": {1: "Oui", 2: "Non", 0: "Je ne sais pas"}, "ES": {1: "Sí", 2: "No", 0: "No sé"}}
 BF_MAP      = {
     "EN": {1: "No, I did not breastfeed", 2: "No, I did not need help",
            3: "No, I needed help but did not receive it", 4: "Yes, I was helped but not enough",
@@ -486,14 +501,18 @@ BF_MAP      = {
     "FR": {1: "Non, je n'ai pas allaité", 2: "Non, pas besoin d'aide",
            3: "Non, j'avais besoin d'aide mais n'en ai reçu aucune", 4: "Oui, j'ai reçu de l'aide mais insuffisamment",
            5: "Oui, j'ai reçu l'aide nécessaire", 0: "Je ne sais pas"},
+    "ES": {1: "No, no amamanté", 2: "No, no necesité ayuda", 3: "No, necesité ayuda pero no la recibí",
+           4: "Sí, recibí ayuda pero no suficiente", 5: "Sí, recibí la ayuda que necesitaba", 0: "No sé/no aplica"},
 }
 SKIN_MAP    = {
     "EN": {1: "Yes", 2: "Yes, but not immediate", 3: "Yes, but less than an hour",
            4: "No", 5: "No, chose not to or could not", 6: "I don't know"},
     "FR": {1: "Oui", 2: "Oui, mais pas immédiat", 3: "Oui, moins d'une heure",
            4: "Non", 5: "Non, ne souhaitait pas", 6: "Je ne sais pas"},
+    "ES": {1: "Sí", 2: "Sí, pero no inmediato", 3: "Sí, pero menos de una hora",
+           4: "No", 5: "No, eligió no hacerlo o no pudo", 6: "No sé"},
 }
-INDUCE_MAP  = {"EN": {1: "No", 2: "Yes", 0: "I don't know"}, "FR": {1: "Non", 2: "Oui", 0: "Je ne sais pas"}}
+INDUCE_MAP  = {"EN": {1: "No", 2: "Yes", 0: "I don't know"}, "FR": {1: "Non", 2: "Oui", 0: "Je ne sais pas"}, "ES": {1: "No", 2: "Sí", 0: "No sé/no aplica"}}
 PHARMA_MAP  = {
     "EN": {1: "No, I did not want any", 2: "No, even though I wanted it",
            3: "Yes, but I received it too late", 4: "Yes, when I wanted it",
@@ -501,29 +520,37 @@ PHARMA_MAP  = {
     "FR": {1: "Non, je n'en voulais pas", 2: "Non, même si je le voulais",
            3: "Oui, mais reçu trop tard", 4: "Oui, quand je le voulais",
            5: "Non, non disponible dans l'établissement", 0: "Je ne sais pas"},
+    "ES": {1: "No, porque no quería", 2: "No, aunque lo quería", 3: "Sí, pero lo recibí muy tarde",
+           4: "Sí, cuando lo quería", 5: "No, este centro no lo ofrece", 0: "No sé/no aplica"},
 }
 COMFORT_MAP = {
     "EN": {1: "Yes, and I used them", 2: "Yes, but I did not use them", 3: "No, none were suggested", 0: "I don't know"},
     "FR": {1: "Oui, et je les ai utilisés", 2: "Oui, mais je ne les ai pas utilisés",
            3: "Non, aucune mesure proposée", 0: "Je ne sais pas"},
+    "ES": {1: "Sí y los usé", 2: "Sí pero no los usé", 3: "No, ninguno fue sugerido", 0: "No sé/no aplica"},
 }
 ROOMING_MAP = {
     "EN": {4: "Yes, with me/us most of the time", 1: "No, baby was sick/sent to unit",
            2: "No, baby was not with me/us", 3: "No, I did not want baby with me", 0: "I don't know"},
     "FR": {4: "Oui, avec moi/nous la plupart du temps", 1: "Non, bébé malade/envoyé en néonatalogie",
            2: "Non, bébé pas avec moi/nous", 3: "Non, je ne souhaitais pas", 0: "Je ne sais pas"},
+    "ES": {4: "Sí, conmigo/nosotros la mayor parte del tiempo", 1: "No, bebé enfermo/enviado a unidad",
+           2: "No, bebé no estuvo conmigo/nosotros", 3: "No, yo no quería", 0: "No sé/no aplica"},
 }
 VERBAL_MAP  = {
     "EN": {1: "Never", 2: "Rarely", 3: "Sometimes", 4: "Most of the time", 5: "Always", 0: "I don't know/not applicable"},
     "FR": {1: "Jamais", 2: "Rarement", 3: "Quelquefois", 4: "La plupart du temps", 5: "Toujours", 0: "Je ne sais pas/non applicable"},
+    "ES": {1: "Nunca", 2: "Raramente", 3: "A veces", 4: "La mayoría de las veces", 5: "Siempre", 0: "No sé/no aplica"},
 }
 PHYS_MAP    = {
     "EN": {1: "Never", 2: "Rarely", 3: "Sometimes", 4: "Most of the time", 5: "Always", 0: "I don't know/not applicable"},
     "FR": {1: "Jamais", 2: "De temps en temps", 3: "Quelquefois", 4: "La plupart du temps", 5: "Toujours", 0: "Je ne sais pas/non applicable"},
+    "ES": {1: "Nunca", 2: "En ocasiones", 3: "A veces", 4: "La mayoría de las veces", 5: "Siempre", 0: "No sé/no aplica"},
 }
 PAYMENT_MAP = {
     "EN": {1: "Yes", 2: "No", 3: "No, care was free or covered by insurance", 0: "I don't know"},
     "FR": {1: "Oui", 2: "Non", 3: "Non, soins gratuits ou couverts par l'assurance", 0: "Je ne sais pas"},
+    "ES": {1: "Sí", 2: "No", 3: "No, los servicios eran gratuitos o cubiertos por el seguro", 0: "No sé"},
 }
 LIKERT_QS_W = {
     "EN": {"introduction": "Staff introduced themselves", "spoke": "Staff spoke understandably",
@@ -534,22 +561,31 @@ LIKERT_QS_W = {
            "communication": "À l'aise pour poser des questions", "privacy": "Intimité protégée",
            "respect": "Traitée avec respect", "values": "Croyances et choix respectés",
            "positive": "Encouragée à être autonome", "morale": "Personnel heureux et supporté", "coop": "Soins coordonnés"},
+    "ES": {"introduction": "El personal se presentó", "spoke": "El personal habló claramente",
+           "communication": "Cómoda haciendo preguntas", "privacy": "Intimidad protegida",
+           "respect": "Tratada con respeto", "values": "Creencias y opciones respetadas",
+           "positive": "Animada a sentirse capaz", "morale": "Personal feliz y apoyado", "coop": "Cuidados coordinados"},
 }
 EMOTION_LABELS_W = {
     "EN": {1: "Competence", 2: "Incapable", 3: "Anxious", 4: "Supported", 5: "Exhausted",
            6: "Active", 7: "Relaxed", 8: "Passive", 9: "Responsible", 10: "Dependent", 11: "Secure", 12: "Excluded"},
     "FR": {1: "Compétence", 2: "Incapable", 3: "Anxieuse", 4: "Soutenue", 5: "Épuisée",
            6: "Active", 7: "Détendue", 8: "Passive", 9: "Responsable", 10: "Dépendante", 11: "Sécurisée", 12: "Mise à l'écart"},
+    "ES": {1: "Capaz", 2: "Incapaz", 3: "Ansioso", 4: "Apoyado", 5: "Agotado",
+           6: "Activo", 7: "Relajado", 8: "Pasivo", 9: "Responsable", 10: "Dependiente", 11: "Seguro", 12: "Excluída"},
 }
 POSITIVE_EMO_W = {
     "EN": {"Competence", "Supported", "Active", "Relaxed", "Responsible", "Secure"},
     "FR": {"Compétence", "Soutenue", "Active", "Détendue", "Responsable", "Sécurisée"},
+    "ES": {"Capaz", "Apoyado", "Activo", "Relajado", "Responsable", "Seguro"},
 }
 INFO_LABELS_W = {
     "EN": {1: "Caring for my new baby", 2: "Advice about family planning",
            3: "Warning signs requiring consultation", 4: "Where to go for follow-up care"},
     "FR": {1: "Prendre soin de mon nouveau-né", 2: "Conseils sur la planification familiale",
            3: "Signes à surveiller nécessitant consultation", 4: "Où aller pour les soins de suivi"},
+    "ES": {1: "Cuidar a mi nuevo bebé", 2: "Consejos sobre planificación familiar",
+           3: "Señales de alarma que requieren consulta", 4: "Dónde ir para el seguimiento"},
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -562,27 +598,33 @@ INFO_LABELS_W = {
 COMP_REL_MAP = {
     "EN": {1: "Partner/Father of baby", 2: "Family member", 3: "Friend", 0: "Other"},
     "FR": {1: "Partenaire/Père du bébé", 2: "Membre de la famille", 3: "Ami(e)", 0: "Autre"},
+    "ES": {1: "Padre del bebé", 2: "Familiar", 3: "Amigo", 0: "Otro"},
 }
 # Presence during labour (complab)
 COMPLAB_MAP = {
     "EN": {1: "Yes, all the time", 2: "No", 3: "Yes, some of the time", 9: "I don't know"},
     "FR": {1: "Oui, tout le temps", 2: "Non", 3: "Oui, parfois", 9: "Je ne sais pas"},
+    "ES": {1: "Sí, todo el tiempo", 2: "No", 3: "Sí, algunas veces", 9: "No sé"},
 }
 # Presence during birth (comp_deliv)
 COMP_DELIV_MAP = {
     "EN": {1: "Yes", 2: "No", 0: "I don't know"},
     "FR": {1: "Oui", 2: "Non", 0: "Je ne sais pas"},
+    "ES": {1: "Sí", 2: "No", 0: "No sé"},
 }
 # Respect as companion (comp_001)
 COMP_RESPECT_MAP = {
     "EN": {5: "Always", 4: "Most of the time", 3: "Sometimes", 2: "Rarely", 1: "Never", 0: "I don't know/not applicable"},
     "FR": {5: "Toujours", 4: "La plupart du temps", 3: "Quelquefois", 2: "Rarement", 1: "Jamais", 0: "Je ne sais pas/non applicable"},
+    "ES": {5: "Siempre", 4: "La mayoría de las veces", 3: "A veces", 2: "En ocasiones", 1: "Nunca", 0: "No sé/no aplica"},
 }
 # Comfort measures (comfort — same as women but different context)
 COMP_COMFORT_MAP = {
     "EN": {1: "Yes, and she used them", 2: "Yes, but she did not use them", 3: "No, none were suggested", 0: "I don't know"},
     "FR": {1: "Oui, et elle les a utilisés", 2: "Oui, mais elle ne les a pas utilisés",
            3: "Non, aucune mesure proposée", 0: "Je ne sais pas"},
+    "ES": {1: "Sí y ella los utilizó", 2: "Sí pero ella no los utilizó",
+           3: "No, ninguno fue sugerido", 0: "No sé"},
 }
 # Treatment/choices discussed (choices)
 CHOICES_MAP = {
@@ -590,11 +632,14 @@ CHOICES_MAP = {
            4: "No choices presented — some actions not understood", 0: "I don't know"},
     "FR": {1: "Oui, en détail", 2: "Oui, un peu", 3: "N'a pas présenté désavantages/alternatives",
            4: "Aucun choix présenté — certains actes non compris", 0: "Je ne sais pas"},
+    "ES": {1: "Sí, en profundidad", 2: "Sí, un poco", 3: "No presentaron desventajas/alternativas",
+           4: "No se presentaron opciones — algunas acciones no comprendidas", 0: "No sé"},
 }
 # Emergency confidence (emergency)
 EMERGENCY_MAP = {
     "EN": {5: "Strongly agree", 4: "Agree", 3: "Partially agree", 2: "Disagree", 1: "Strongly disagree", 0: "I don't know"},
     "FR": {5: "Tout à fait d'accord", 4: "D'accord", 3: "Partiellement d'accord", 2: "Pas d'accord", 1: "Pas du tout d'accord", 0: "Je ne sais pas"},
+    "ES": {5: "Totalmente de acuerdo", 4: "De acuerdo", 3: "Parcialmente de acuerdo", 2: "En desacuerdo", 1: "Totalmente en desacuerdo", 0: "No sé"},
 }
 # Rooming (companion perspective)
 COMP_ROOMING_MAP = {
@@ -602,6 +647,8 @@ COMP_ROOMING_MAP = {
            2: "No, baby was not with mother most of the time", 0: "I don't know"},
     "FR": {4: "Oui, la plupart du temps", 1: "Non, bébé malade/envoyé en unité",
            2: "Non, bébé pas avec la mère la plupart du temps", 0: "Je ne sais pas"},
+    "ES": {4: "Sí, la mayor parte del tiempo", 1: "No, bebé enfermo/enviado a unidad",
+           2: "No, bebé no estuvo con la madre la mayor parte del tiempo", 0: "No sé"},
 }
 # Breastfeeding only (milk)
 MILK_MAP = {
@@ -609,16 +656,20 @@ MILK_MAP = {
            4: "No, even though she did not want supplementary feeding", 0: "I don't know"},
     "FR": {1: "Oui", 2: "Non, bébé avec complications", 3: "Non, mère a choisi alimentation complémentaire",
            4: "Non, même si elle ne voulait pas", 0: "Je ne sais pas"},
+    "ES": {1: "Sí", 2: "No, bebé tuvo complicaciones", 3: "No, la madre eligió alimentación suplementaria",
+           4: "No, aunque la madre no quería", 0: "No sé"},
 }
 # Accompany (confident & prepared)
 ACCOMPANY_MAP = {
     "EN": {5: "Strongly agree", 4: "Agree", 3: "Somewhat agree", 2: "Disagree", 1: "Strongly disagree"},
     "FR": {5: "Tout à fait d'accord", 4: "D'accord", 3: "Plutôt d'accord", 2: "Pas d'accord", 1: "Pas du tout d'accord"},
+    "ES": {5: "Totalmente de acuerdo", 4: "De acuerdo", 3: "Algo de acuerdo", 2: "En desacuerdo", 1: "Totalmente en desacuerdo"},
 }
 # Extra fees
 EXTRA_MAP = {
     "EN": {2: "No", 3: "No, care was free or covered", 1: "Yes", 0: "I don't know"},
     "FR": {2: "Non", 3: "Non, soins gratuits ou couverts", 1: "Oui", 0: "Je ne sais pas"},
+    "ES": {2: "No", 3: "No, cuidado gratuito o cubierto por seguro", 1: "Sí", 0: "No sé"},
 }
 # Values/beliefs respected (companion)
 COMP_VALUES_MAP = {
@@ -626,6 +677,8 @@ COMP_VALUES_MAP = {
            2: "Yes, a few of them", 1: "No", 0: "I don't know"},
     "FR": {5: "Oui, tout le personnel", 4: "Oui, la plupart", 3: "Oui, certains",
            2: "Oui, quelques-uns", 1: "Non", 0: "Je ne sais pas"},
+    "ES": {5: "Sí, a todos", 4: "Sí, a la mayoría", 3: "Sí, a algunos",
+           2: "Sí, a pocos", 1: "No", 0: "No sé"},
 }
 # Decisions (companion version — 3 levels)
 COMP_DECISIONS_MAP = {
@@ -633,16 +686,20 @@ COMP_DECISIONS_MAP = {
            4: "No, not included", 0: "I don't know/not applicable"},
     "FR": {1: "Oui, inclus avec suffisamment d'informations", 3: "Parfois inclus",
            4: "Non, pas inclus", 0: "Je ne sais pas/non applicable"},
+    "ES": {1: "Sí, incluido con suficiente información", 3: "Ocasionalmente incluido",
+           4: "No, no incluido", 0: "No sé/no aplica"},
 }
 # Coop (companion)
 COMP_COOP_MAP = {
     "EN": {5: "Always", 4: "Most of the time", 3: "Sometimes", 2: "Rarely", 1: "Never", 0: "I don't know"},
     "FR": {5: "Toujours", 4: "La plupart du temps", 3: "Quelquefois", 2: "Rarement", 1: "Jamais", 0: "Je ne sais pas"},
+    "ES": {5: "Siempre", 4: "La mayoría de las veces", 3: "Algunas veces", 2: "Raramente", 1: "Nunca", 0: "No sé"},
 }
 # Treatment/equal (treatment)
 COMP_TREATMENT_MAP = {
     "EN": {5: "Always", 4: "Most of the time", 3: "Sometimes", 2: "Rarely", 1: "Never", 0: "I don't know/not applicable"},
     "FR": {5: "Toujours", 4: "La plupart du temps", 3: "Quelquefois", 2: "Rarement", 1: "Jamais", 0: "Je ne sais pas/non applicable"},
+    "ES": {5: "Siempre", 4: "La mayoría de las veces", 3: "A veces", 2: "En ocasiones", 1: "Nunca", 0: "No sé/no aplica"},
 }
 # Pharma (companion perspective — same structure as women)
 COMP_PHARMA_MAP = {
@@ -652,6 +709,9 @@ COMP_PHARMA_MAP = {
     "FR": {1: "Non, elle n'en voulait pas", 2: "Non, même si elle le voulait",
            3: "Oui, mais reçu trop tard", 4: "Oui, quand elle le voulait",
            5: "Non, non disponible dans l'établissement", 0: "Je ne sais pas"},
+    "ES": {1: "No, porque ella no quería", 2: "No, aunque ella lo quería",
+           3: "Sí, pero lo recibió muy tarde", 4: "Sí, cuando lo quería",
+           5: "No, este centro no lo ofrece", 0: "No sé"},
 }
 
 # Likert questions for companion
@@ -672,12 +732,32 @@ LIKERT_QS_C = {
         "comp_001":     "Se sentait respecté comme acompagnant",
         "coop":         "Personnel coordonné",
     },
+    "ES": {
+        "introduction": "El personal se presentó",
+        "spoke":        "El personal habló claramente",
+        "privacy":      "Intimidad protegida",
+        "respect":      "Mujer tratada con respeto",
+        "comp_001":     "Se sintió respetado como acompañante",
+        "coop":         "Personal coordinado",
+    },
 }
 
-# Companion emotions — single select, text labels from data
+# Companion emotion — single select with numeric codes
+COMP_EMOTION_MAP = {
+    "EN": {1: "Afraid", 3: "Anxious", 4: "Confident", 5: "Doubtful", 6: "Exhausted",
+           7: "Grateful", 8: "Happy", 9: "Loving", 10: "Nervous", 12: "Reassured",
+           14: "Respected", 15: "Satisfied", 16: "Secure", 19: "Supported", 20: "Surprised"},
+    "FR": {1: "Effrayé", 3: "Anxieux", 4: "Confiant", 5: "Incertain", 6: "Épuisé",
+           7: "Reconnaissant", 8: "Heureux", 9: "Aimant", 10: "Nerveux", 12: "Rassuré",
+           14: "Respecté", 15: "Satisfait", 16: "Sécurisé", 19: "Soutenu", 20: "Surpris"},
+    "ES": {1: "Miedo", 3: "Ansiedad", 4: "Confianza", 5: "Duda", 6: "Agotamiento",
+           7: "Gratitud", 8: "Felicidad", 9: "Cariño", 10: "Nerviosismo", 12: "Tranquilidad",
+           14: "Respeto", 15: "Satisfacción", 16: "Seguridad", 19: "Apoyo", 20: "Sorpresa"},
+}
 POSITIVE_EMO_C = {
-    "EN": {"Happy", "Confident", "Grateful", "Reassured", "Respected", "Loving", "Secure", "Satisfied", "Supported"},
-    "FR": {"Felicidad", "Confianza", "Gratitud", "Tranquilidad", "Respetado", "Amor", "Seguro", "Satisfecho", "Apoyo"},
+    "EN": {"Confident", "Grateful", "Happy", "Loving", "Reassured", "Respected", "Satisfied", "Secure", "Supported"},
+    "FR": {"Confiant", "Reconnaissant", "Heureux", "Aimant", "Rassuré", "Respecté", "Satisfait", "Sécurisé", "Soutenu"},
+    "ES": {"Confianza", "Gratitud", "Felicidad", "Cariño", "Tranquilidad", "Respeto", "Satisfacción", "Seguridad", "Apoyo"},
 }
 
 # Info labels (companion — same keys but companion phrasing)
@@ -688,4 +768,7 @@ INFO_LABELS_C = {
     "FR": {1: "Prendre soin du nouveau-né", 2: "Conseils planification familiale",
            3: "Signes d'alarme nécessitant consultation", 4: "Où aller pour le suivi",
            5: "Aucune — nous/elle avons refusé", 9: "Rien n'a été proposé", 99: "Je ne sais pas"},
+    "ES": {1: "Cuidar al nuevo bebé", 2: "Consejos sobre planificación familiar",
+           3: "Señales de alarma que requieren consulta", 4: "Dónde ir para el seguimiento",
+           5: "Ninguna — nosotros/ella rechazamos la información", 9: "No se ofreció nada", 99: "No sé"},
 }
