@@ -167,6 +167,7 @@ def load_facilities(facility_dict: dict) -> pd.DataFrame:
     for fac_id, fac_info in facility_dict.items():
         df = load_facility_data(fac_info["asset_uid"], fac_info["name"])
         if not df.empty:
+            df = normalize_columns(df)
             df["_country"] = fac_info["country"]
             all_dfs.append(df)
     if all_dfs:
@@ -177,6 +178,27 @@ def load_facilities(facility_dict: dict) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════════════════════════════
 # UTILITY FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
+def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Strip Kobo group prefixes from column names.
+    
+    The Kobo API sometimes returns columns as 'group_xyz/question_name'
+    instead of just 'question_name'. This strips everything before the
+    last '/' for columns that contain a slash, but only if the resulting
+    short name is not already taken by another column.
+    """
+    new_cols = {}
+    existing = set(df.columns)
+    for col in df.columns:
+        if '/' in col:
+            short = col.rsplit('/', 1)[-1]
+            # Only rename if the short name doesn't already exist as a standalone column
+            if short not in existing:
+                new_cols[col] = short
+    if new_cols:
+        df = df.rename(columns=new_cols)
+    return df
+
+
 def to_int(s):
     return pd.to_numeric(s, errors="coerce")
 
