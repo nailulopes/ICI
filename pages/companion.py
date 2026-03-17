@@ -1,298 +1,139 @@
-"""ICI Dashboard — Companion Experience Page"""
-
+"""ICI — Companion Experience"""
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ici_shared import (
-    # config
-    COMPANION_FACILITIES, KOBO_TOKEN, APP_PASSWORD, LOGO_PATH,
-    # palette
-    TEAL, ORANGE, SKY, VERMILION, BLUISH, PINK, YELLOW,
-    LIKERT_COLORS, QUALITY_COLORS, PIE_COLORS, FACILITY_COLORS,
-    # utils
-    inject_css, password_gate, load_facilities, to_int, first_token_int,
-    parse_multiselect, clean_layout, sidebar_logo, sidebar_date_filter,
-    # companion labels & maps
-    tc, L_C,
-    METHOD_MAP, EDUCATION_MAP, LIKERT5_MAP, QUALITY_MAP, QUALITY_ORDER,
-    VERBAL_MAP, PHYS_MAP, PAYMENT_MAP,
-    COMP_REL_MAP, COMPLAB_MAP, COMP_DELIV_MAP, COMP_RESPECT_MAP,
-    COMP_COMFORT_MAP, CHOICES_MAP, EMERGENCY_MAP, COMP_ROOMING_MAP,
-    MILK_MAP, ACCOMPANY_MAP, EXTRA_MAP, COMP_VALUES_MAP, COMP_DECISIONS_MAP,
-    COMP_COOP_MAP, COMP_TREATMENT_MAP, COMP_PHARMA_MAP,
-    LIKERT_QS_C, POSITIVE_EMO_C, INFO_LABELS_C, COMP_EMOTION_MAP,
+    TEAL, ORANGE, SKY, VERMILION, BLUISH, PINK,
+    LIKERT_COLORS, QUALITY_COLORS, PIE_COLORS,
+    inject_css, sidebar_logo, logout_button, lang_selector, date_filter,
+    load_companion, prep_companion, to_int, parse_multiselect, clean_layout,
+    get_facility_ids,
+    LIKERT5_MAP, QUALITY_ORDER, LIKERT_QS_C,
+    COMP_EMOTION_MAP, POSITIVE_EMO_C, INFO_LABELS_C,
 )
 
 inject_css()
-password_gate()
+sidebar_logo()
 
-if not KOBO_TOKEN:
-    st.error("⚠ KOBO_TOKEN not found in Streamlit Secrets.")
-    st.stop()
+fac_ids = get_facility_ids()
+if not fac_ids:
+    st.error("Not logged in."); st.stop()
 
-# ── Language selector ────────────────────────────────────────────────────────
-# ── Language selector (pill style) ──────────────────────────────────────────
-if "lang_c" not in st.session_state:
-    st.session_state["lang_c"] = "EN"
+lang = lang_selector("lang_c")
 
-_lang_cols = st.columns([1, 1, 1, 9])
-for _i, _l in enumerate(["EN", "FR", "ES"]):
-    _active = st.session_state["lang_c"] == _l
-    _style  = "background:#009E73;color:white;border:none;border-radius:20px;padding:4px 14px;font-weight:600;cursor:pointer;" if _active else               "background:#f0f0f0;color:#444;border:none;border-radius:20px;padding:4px 14px;cursor:pointer;"
-    if _lang_cols[_i].button(_l, key=f"lang_c_btn_{_l}", use_container_width=True,
-                              type="primary" if _active else "secondary"):
-        st.session_state["lang_c"] = _l
-        st.rerun()
-lang = st.session_state["lang_c"]
+L = {"EN":{"loading":"Loading…","no_data":"No companion data available."},
+     "FR":{"loading":"Chargement…","no_data":"Aucune donnée acompagnant."},
+     "ES":{"loading":"Cargando…","no_data":"Sin datos de acompañantes."}}[lang]
 
-# ── Load data ────────────────────────────────────────────────────────────────
-with st.spinner("Loading companion data…" if lang == "EN" else "Chargement acompagnants…"):
-    raw = load_facilities(COMPANION_FACILITIES)
+with st.spinner(L["loading"]):
+    raw = load_companion(fac_ids)
 if raw.empty:
-    st.warning("No companion data found." if lang == "EN" else "Aucune donnée acompagnant.")
-    st.stop()
+    st.info(L["no_data"]); st.stop()
+df = prep_companion(raw, lang)
 
-
-def prep_companion(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce", utc=False)
-
-    # Numeric conversions
-    # Map companion emotion codes to labels
-    if "emotion" in df.columns:
-        df["emotion"] = to_int(df["emotion"])
-        df["emotion_label"] = df["emotion"].map(COMP_EMOTION_MAP.get(lang, COMP_EMOTION_MAP["EN"])).fillna(pd.NA)
-
-    for col in ["age", "education", "comp", "method", "introduction", "spoke",
-                "privacy", "respect", "comp_001", "verbal", "phys", "treatment",
-                "payment", "extra", "values", "decisions", "complab", "comp_deliv",
-                "comfort", "pharma", "choices", "treat", "emergency", "coop",
-                "rooming", "milk", "expect", "satisfaction", "accompany"]:
-        if col in df.columns:
-            df[col] = to_int(df[col])
-
-    # Labeled columns
-    for col, mp in [
-        ("education",  EDUCATION_MAP[lang]),
-        ("comp",       COMP_REL_MAP[lang]),
-        ("method",     METHOD_MAP[lang]),
-        ("verbal",     VERBAL_MAP[lang]),
-        ("phys",       PHYS_MAP[lang]),
-        ("payment",    PAYMENT_MAP[lang]),
-        ("extra",      EXTRA_MAP[lang]),
-        ("satisfaction", QUALITY_MAP[lang]),
-        ("expect",     QUALITY_MAP[lang]),
-        ("complab",    COMPLAB_MAP[lang]),
-        ("comp_deliv", COMP_DELIV_MAP[lang]),
-        ("comp_001",   COMP_RESPECT_MAP[lang]),
-        ("comfort",    COMP_COMFORT_MAP[lang]),
-        ("pharma",     COMP_PHARMA_MAP[lang]),
-        ("choices",    CHOICES_MAP[lang]),
-        ("emergency",  EMERGENCY_MAP[lang]),
-        ("rooming",    COMP_ROOMING_MAP[lang]),
-        ("milk",       MILK_MAP[lang]),
-        ("accompany",  ACCOMPANY_MAP[lang]),
-        ("values",     COMP_VALUES_MAP[lang]),
-        ("decisions",  COMP_DECISIONS_MAP[lang]),
-        ("coop",       COMP_COOP_MAP[lang]),
-        ("treatment",  COMP_TREATMENT_MAP[lang]),
-    ]:
-        if col in df.columns:
-            df[col + "_label"] = df[col].map(mp).fillna(pd.NA)
-
-    # Likert items
-    for col in ["introduction", "spoke", "privacy", "respect", "comp_001", "coop"]:
-        if col in df.columns:
-            df[col + "_label"] = df[col].map(LIKERT5_MAP[lang]).fillna(pd.NA)
-
-    # Age
-    if "age" in df.columns:
-        df["age_group"] = pd.cut(df["age"], bins=[0, 24, 29, 34, 39, 99],
-                                  labels=["<25", "25–29", "30–34", "35–39", "40+"])
-
-    return df
-
-
-df = prep_companion(raw)
-total_n = len(df)
-
-# ── Sidebar ──────────────────────────────────────────────────────────────────
-sidebar_logo()
 st.sidebar.markdown("""
-<div style="text-align:center;padding:0 0 0 0;">
-    <div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:#0072B2;font-weight:600;line-height:1.3;margin-bottom:2px;">ICI Dashboard</div>
-    <div style="font-size:0.68rem;color:#888;line-height:1.3;margin-bottom:12px;">Companion Experience</div>
-    <hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
+<div style="text-align:center;">
+<div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:#0072B2;font-weight:600;">ICI Dashboard</div>
+<div style="font-size:0.68rem;color:#888;margin-bottom:12px;">Companion Experience</div>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
 </div>""", unsafe_allow_html=True)
-st.sidebar.header(tc("filters", lang))
 
-facilities_available = df["_facility"].unique().tolist()
-if len(facilities_available) > 1:
-    sel_fac = st.sidebar.selectbox(tc("facility", lang),
-                                   [tc("all", lang)] + facilities_available)
-    if sel_fac != tc("all", lang):
-        df = df[df["_facility"] == sel_fac]
-        total_n = len(df)
-else:
-    st.sidebar.markdown(f"**{tc('facility', lang)}:** {facilities_available[0]}" if facilities_available else "")
-
-df = sidebar_date_filter(df, lang, key_prefix="c")
+df = date_filter(df)
 total_n = len(df)
+if total_n == 0:
+    st.warning({"EN":"No data for selected period.","FR":"Aucune donnée.","ES":"Sin datos."}[lang]); st.stop()
 
-# Birth method filter
-if "method_label" in df.columns:
-    opts = [tc("all", lang)] + sorted(df["method_label"].dropna().unique().tolist())
-    sel = st.sidebar.selectbox(tc("birth_method_f", lang), opts)
-    if sel != tc("all", lang):
-        df = df[df["method_label"] == sel]
-        total_n = len(df)
+st.sidebar.metric({"EN":"Responses","FR":"Réponses","ES":"Respuestas"}[lang], total_n)
+if st.sidebar.button({"EN":"↻ Refresh","FR":"↻ Actualiser","ES":"↻ Actualizar"}[lang]):
+    st.cache_data.clear(); st.rerun()
+logout_button()
 
-st.sidebar.metric(tc("filtered", lang), total_n)
-if st.sidebar.button(tc("refresh", lang)):
-    st.cache_data.clear()
-    st.rerun()
-sidebar_logo()
-
-# ── Hero banner ───────────────────────────────────────────────────────────────
-sat_good = (df["satisfaction"].isin([4, 5])).sum() / total_n * 100 if "satisfaction" in df.columns and total_n > 0 else 0
-
-# Present during labour
-pres_lab = (df["complab"] == 1).sum() / total_n * 100 if "complab" in df.columns and total_n > 0 else 0
-
-# Present during birth
-pres_del = (df["comp_deliv"] == 1).sum() / total_n * 100 if "comp_deliv" in df.columns and total_n > 0 else 0
-
-# Felt confident & prepared (strongly agree + agree)
-confident = (df["accompany"].isin([5, 4])).sum() / total_n * 100 if "accompany" in df.columns and total_n > 0 else 0
-
-# Age
-if "age" in df.columns and df["age"].notna().sum() > 0:
-    am, an, ax = df["age"].mean(), int(df["age"].min()), int(df["age"].max())
-    age_display = f"{am:.0f} ({an}–{ax})"
+# ── Hero ──────────────────────────────────────────────────────────────────────
+sat_good   = (df["satisfaction"].isin([4,5])).sum()/total_n*100 if "satisfaction" in df.columns else 0
+pres_lab   = (df["complab"]==1).sum()/total_n*100 if "complab" in df.columns else 0
+pres_del   = (df["comp_deliv"]==1).sum()/total_n*100 if "comp_deliv" in df.columns else 0
+confident  = (df["accompany"].isin([4,5])).sum()/total_n*100 if "accompany" in df.columns else 0
+if "age" in df.columns and df["age"].notna().sum()>0:
+    a = df["age"]; age_disp = f"{a.mean():.0f} ({int(a.min())}–{int(a.max())})"
 else:
-    age_display = "–"
+    age_disp = "–"
+
+titles = {"EN":"Companion Experience Dashboard","FR":"Expérience des Acompagnants","ES":"Experiencia del Acompañante"}
+captions = {"EN":"ICI — Companion Questionnaire","FR":"ICI — Questionnaire acompagnant","ES":"ICI — Cuestionario del Acompañante"}
+kpi = {"EN":{"total":"Total responses","pos":"rated care Good/Very good","lab":"present during labour",
+             "del":"present during birth","conf":"felt confident & prepared","age":"age (mean, range)"},
+       "FR":{"total":"Total réponses","pos":"soins Bons/Très bons","lab":"présents lors du travail",
+             "del":"présents lors de l'accouchement","conf":"confiants et préparés","age":"âge (moy., étendue)"},
+       "ES":{"total":"Total respuestas","pos":"atención Buena/Muy buena","lab":"presente en el parto",
+             "del":"presente en el nacimiento","conf":"se sentía seguro","age":"edad (moy., rango)"}}[lang]
 
 st.markdown(f"""
 <div class="hero-comp">
-    <div class="hero-title">{tc("title", lang)}</div>
-    <div class="hero-caption">{tc("caption", lang)}</div>
-    <div class="hero-stats">
-        <div class="hero-stat">
-            <div class="hero-stat-num">{total_n:,}</div>
-            <div class="hero-stat-label">{tc("kpi_total", lang)}</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">{sat_good:.0f}%</div>
-            <div class="hero-stat-label">{tc("kpi_positive", lang)}</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">{pres_lab:.0f}%</div>
-            <div class="hero-stat-label">{tc("kpi_present_labour", lang)}</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">{pres_del:.0f}%</div>
-            <div class="hero-stat-label">{tc("kpi_present_birth", lang)}</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">{confident:.0f}%</div>
-            <div class="hero-stat-label">{tc("kpi_confident", lang)}</div>
-        </div>
-    </div>
+  <div class="hero-title">{titles[lang]}</div>
+  <div class="hero-caption">{captions[lang]}</div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-num">{total_n:,}</div><div class="hero-stat-label">{kpi['total']}</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">{sat_good:.0f}%</div><div class="hero-stat-label">{kpi['pos']}</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">{pres_lab:.0f}%</div><div class="hero-stat-label">{kpi['lab']}</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">{pres_del:.0f}%</div><div class="hero-stat-label">{kpi['del']}</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">{confident:.0f}%</div><div class="hero-stat-label">{kpi['conf']}</div></div>
+  </div>
 </div>""", unsafe_allow_html=True)
 
 # ── Timeline ──────────────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_timeline", lang)}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">{"Responses Over Time" if lang=="EN" else "Réponses dans le temps" if lang=="FR" else "Respuestas en el tiempo"}</div>', unsafe_allow_html=True)
 if "_submission_time" in df.columns and df["_submission_time"].notna().any():
-    freq_opts = [tc("grp_month", lang), tc("grp_week", lang), tc("grp_day", lang)]
-    freq = st.radio(tc("grp_by", lang), freq_opts, horizontal=True, key="freq_c")
-    fmap = {tc("grp_day", lang): "D", tc("grp_week", lang): "W", tc("grp_month", lang): "MS"}
-    ts = df.groupby(pd.Grouper(key="_submission_time", freq=fmap[freq])).size().reset_index(name="n")
-    ts = ts[ts["n"] > 0]
-    fig = px.area(ts, x="_submission_time", y="n",
-                  labels={"_submission_time": "", "n": tc("responses", lang)},
-                  color_discrete_sequence=[BLUISH])
+    grp_opts = {"EN":["Month","Week","Day"],"FR":["Mois","Semaine","Jour"],"ES":["Mes","Semana","Día"]}[lang]
+    freq_map = {grp_opts[0]:"MS", grp_opts[1]:"W", grp_opts[2]:"D"}
+    grp = st.radio({"EN":"Group by","FR":"Regrouper par","ES":"Agrupar por"}[lang], grp_opts, horizontal=True, key="grp_c")
+    ts = df.groupby(pd.Grouper(key="_submission_time", freq=freq_map[grp])).size().reset_index(name="n")
+    ts = ts[ts["n"]>0]
+    fig = px.area(ts, x="_submission_time", y="n", color_discrete_sequence=[BLUISH],
+                  labels={"_submission_time":"","n":{"EN":"Responses","FR":"Réponses","ES":"Respuestas"}[lang]})
     fig.update_traces(line_width=2, fillcolor="rgba(0,114,178,0.12)")
-    fig.update_layout(margin=dict(t=8, b=8, l=8, r=8), height=200,
-                      plot_bgcolor="white", paper_bgcolor="white",
-                      font=dict(family="DM Sans, sans-serif"))
+    fig.update_layout(height=200, margin=dict(t=8,b=8,l=8,r=8), plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
 
-# ── Companion Profile ─────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_profile", lang)}</div>', unsafe_allow_html=True)
+# ── Profile ───────────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Companion Profile" if lang=="EN" else "Profil des acompagnants" if lang=="FR" else "Perfil del Acompañante"}</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
-
-# Relationship
-if "comp_label" in df.columns:
-    rc = df["comp_label"].value_counts().reset_index(); rc.columns = ["r", "n"]
-    rc["pct"]  = (rc["n"] / total_n * 100).round(1)
-    rc["text"] = rc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-    fig = px.bar(rc, x="n", y="r", orientation="h", color_discrete_sequence=[BLUISH],
-                 labels={"r": "", "n": ""}, text="text")
-    fig.update_traces(textposition="outside", textfont=dict(size=9))
-    fig = clean_layout(fig, title=tc("p_relation", lang), height=260)
-    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
-    c1.plotly_chart(fig, use_container_width=True)
-
-# Age group
-if "age_group" in df.columns:
-    ac = df["age_group"].value_counts().sort_index().reset_index(); ac.columns = ["f", "n"]
-    ac["pct"]  = (ac["n"] / total_n * 100).round(1)
-    ac["text"] = ac.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-    fig = px.bar(ac, x="f", y="n", color_discrete_sequence=[SKY],
-                 labels={"f": "", "n": ""}, text="text")
-    fig.update_traces(textposition="outside", textfont=dict(size=9))
-    fig = clean_layout(fig, title=tc("p_age", lang), height=260)
-    fig.update_xaxes(showgrid=False); fig.update_yaxes(gridcolor="#eeeeee")
-    c2.plotly_chart(fig, use_container_width=True)
-
-# Education
-if "education_label" in df.columns:
-    ec = df["education_label"].value_counts().reset_index(); ec.columns = ["e", "n"]
-    ec["pct"]  = (ec["n"] / total_n * 100).round(1)
-    ec["text"] = ec.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-    fig = px.bar(ec, x="n", y="e", orientation="h", color_discrete_sequence=[PINK],
-                 labels={"e": "", "n": ""}, text="text")
-    fig.update_traces(textposition="outside", textfont=dict(size=9))
-    fig = clean_layout(fig, title=tc("p_education", lang), height=260)
-    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
-    c3.plotly_chart(fig, use_container_width=True)
-
-# Birth method (observed by companion)
-if "method_label" in df.columns:
-    mc = df["method_label"].value_counts().reset_index(); mc.columns = ["m", "n"]
-    fig = px.pie(mc, names="m", values="n", hole=0.45, color_discrete_sequence=PIE_COLORS)
-    fig = clean_layout(fig, title=tc("p_method", lang), height=300, legend_below=True)
-    st.plotly_chart(fig, use_container_width=True)
-
-# ── Presence During Labour & Birth ────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_presence", lang)}</div>', unsafe_allow_html=True)
-c1, c2, c3 = st.columns(3)
-
-for col_lbl, key, color, container in [
-    ("complab_label",    "c_complab",    TEAL,   c1),
-    ("comp_deliv_label", "c_comp_deliv", BLUISH, c2),
-    ("accompany_label",  "c_accompany",  ORANGE, c3),
+for col_lbl, title, color, container in [
+    ("comp_label",       {"EN":"Relationship","FR":"Relation","ES":"Relación"}[lang],         BLUISH, c1),
+    ("education_label",  {"EN":"Education","FR":"Éducation","ES":"Educación"}[lang],          PINK,   c2),
+    ("method_label",     {"EN":"Birth method (observed)","FR":"Mode accouchement","ES":"Vía de nacimiento"}[lang], TEAL, c3),
 ]:
     if col_lbl in df.columns:
-        vc = df[col_lbl].value_counts().reset_index(); vc.columns = ["r", "n"]
-        vc["pct"]  = (vc["n"] / total_n * 100).round(1)
-        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color],
-                     labels={"r": "", "n": tc("responses", lang)}, text="text")
+        vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], text="text", labels={"r":"","n":""})
         fig.update_traces(textposition="outside", textfont=dict(size=9))
-        fig = clean_layout(fig, title=tc(key, lang), height=260)
+        fig = clean_layout(fig, title=title, height=260)
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
-# ── Likert — Care Quality (companion perception) ───────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_likert", lang)}</div>', unsafe_allow_html=True)
-st.caption(tc("s_likert_cap", lang))
+# ── Presence ──────────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Presence During Labour & Birth" if lang=="EN" else "Présence durant le travail" if lang=="FR" else "Presencia durante el parto"}</div>', unsafe_allow_html=True)
+c1, c2, c3 = st.columns(3)
+for col_lbl, title, color, container in [
+    ("complab_label",    {"EN":"During labour","FR":"Durant travail","ES":"Durante el parto"}[lang],  TEAL,   c1),
+    ("comp_deliv_label", {"EN":"During birth","FR":"Durant naissance","ES":"Durante el nacimiento"}[lang], BLUISH, c2),
+    ("accompany_label",  {"EN":"Felt confident before discharge","FR":"Confiant avant sortie","ES":"Seguro antes del alta"}[lang], ORANGE, c3),
+]:
+    if col_lbl in df.columns:
+        vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], text="text", labels={"r":"","n":""})
+        fig.update_traces(textposition="outside", textfont=dict(size=9))
+        fig = clean_layout(fig, title=title, height=260)
+        fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
+        container.plotly_chart(fig, use_container_width=True)
+
+# ── Likert ────────────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Care Quality — Likert" if lang=="EN" else "Qualité des soins — Likert" if lang=="FR" else "Calidad de Atención — Likert"}</div>', unsafe_allow_html=True)
 likert_order = list(LIKERT5_MAP[lang].values())
 rows = []
 for col, label in LIKERT_QS_C[lang].items():
@@ -300,166 +141,128 @@ for col, label in LIKERT_QS_C[lang].items():
     if lbl in df.columns:
         vc = df[lbl].value_counts(normalize=True).mul(100).round(1)
         for cat in likert_order:
-            rows.append({"Dimension": label, "Response": cat, "Pct": vc.get(cat, 0)})
+            rows.append({"Dimension":label, "Response":cat, "Pct":vc.get(cat,0)})
 if rows:
     ldf = pd.DataFrame(rows)
-    fig = px.bar(ldf, x="Pct", y="Dimension", color="Response", orientation="h",
-                 barmode="stack", color_discrete_sequence=LIKERT_COLORS,
-                 category_orders={"Response": likert_order}, labels={"Pct": "%", "Dimension": ""})
-    fig.update_layout(legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=10)),
-                      margin=dict(t=8, b=110, l=8, r=8), height=420,
-                      plot_bgcolor="white", paper_bgcolor="white",
-                      font=dict(family="DM Sans, sans-serif"))
+    fig = px.bar(ldf, x="Pct", y="Dimension", color="Response", orientation="h", barmode="stack",
+                 color_discrete_sequence=LIKERT_COLORS, category_orders={"Response":likert_order},
+                 labels={"Pct":"%","Dimension":""})
+    fig.update_layout(legend=dict(orientation="h",y=-0.22,x=0.5,xanchor="center"),
+                      margin=dict(t=8,b=110,l=8,r=8), height=400, plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
 
-# ── Autonomy, Consent & Respect ───────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_autonomy", lang)}</div>', unsafe_allow_html=True)
+# ── Autonomy ──────────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Autonomy & Respect" if lang=="EN" else "Autonomie et respect" if lang=="FR" else "Autonomía y respeto"}</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
-
-for col_lbl, key, color, container in [
-    ("decisions_label",  "a_decisions", TEAL,   c1),
-    ("values_label",     "a_values",    BLUISH, c2),
-    ("comp_001_label",   "a_comp001",   SKY,    c3),
+for col_lbl, title, color, container in [
+    ("decisions_label", {"EN":"Included in decisions","FR":"Inclus dans décisions","ES":"Incluido en decisiones"}[lang], TEAL,   c1),
+    ("values_label",    {"EN":"Beliefs respected","FR":"Croyances respectées","ES":"Creencias respetadas"}[lang],        BLUISH, c2),
+    ("comp_001_label",  {"EN":"Felt respected as companion","FR":"Respecté comme acompagnant","ES":"Respetado como acompañante"}[lang], SKY, c3),
 ]:
     if col_lbl in df.columns:
-        vc = df[col_lbl].value_counts().reset_index(); vc.columns = ["r", "n"]
-        vc["pct"]  = (vc["n"] / total_n * 100).round(1)
-        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color],
-                     labels={"r": "", "n": tc("responses", lang)}, text="text")
+        vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], text="text", labels={"r":"","n":""})
         fig.update_traces(textposition="outside", textfont=dict(size=10))
-        fig = clean_layout(fig, title=tc(key, lang), height=270)
+        fig = clean_layout(fig, title=title, height=270)
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
-# Mistreatment observed
-st.markdown(f'<div class="section-title">{tc("s_mistreat", lang)}</div>', unsafe_allow_html=True)
+# ── Mistreatment ──────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Mistreatment Observed" if lang=="EN" else "Maltraitance observée" if lang=="FR" else "Maltrato observado"}</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
-for col_lbl, key, color, container in [
-    ("verbal_label",    "m_verbal",  VERMILION, c1),
-    ("phys_label",      "m_phys",    VERMILION, c2),
-    ("payment_label",   "m_payment", BLUISH,    c3),
+for col_lbl, title, color, container in [
+    ("verbal_label",  {"EN":"Verbal abuse","FR":"Violence verbale","ES":"Violencia verbal"}[lang],    VERMILION, c1),
+    ("phys_label",    {"EN":"Physical abuse","FR":"Violence physique","ES":"Violencia física"}[lang], VERMILION, c2),
+    ("payment_label", {"EN":"Cost informed","FR":"Coût informé","ES":"Informado del costo"}[lang],    BLUISH,    c3),
 ]:
     if col_lbl in df.columns:
-        vc = df[col_lbl].value_counts().reset_index(); vc.columns = ["r", "n"]
-        vc["pct"]  = (vc["n"] / total_n * 100).round(1)
-        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color],
-                     labels={"r": "", "n": tc("responses", lang)}, text="text")
+        vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], text="text", labels={"r":"","n":""})
         fig.update_traces(textposition="outside", textfont=dict(size=9))
-        fig = clean_layout(fig, title=tc(key, lang), height=260)
+        fig = clean_layout(fig, title=title, height=260)
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
-# ── Clinical & Practical ──────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_clinical", lang)}</div>', unsafe_allow_html=True)
+# ── Clinical ──────────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Clinical & Practical" if lang=="EN" else "Clinique et pratique" if lang=="FR" else "Clínico y práctico"}</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
-for col_lbl, key, color, container in [
-    ("comfort_label",   "c_comfort",   TEAL,   c1),
-    ("pharma_label",    "c_pharma",    SKY,    c2),
-    ("choices_label",   "c_choices",   BLUISH, c3),
+for col_lbl, title, color, container in [
+    ("comfort_label",  {"EN":"Comfort measures encouraged","FR":"Mesures confort","ES":"Medidas de confort"}[lang], TEAL,   c1),
+    ("pharma_label",   {"EN":"Pain relief","FR":"Analgésie","ES":"Analgesia"}[lang],                               SKY,    c2),
+    ("choices_label",  {"EN":"Treatment options discussed","FR":"Options traitement","ES":"Opciones tratamiento"}[lang], BLUISH, c3),
 ]:
     if col_lbl in df.columns:
-        vc = df[col_lbl].value_counts().reset_index(); vc.columns = ["r", "n"]
-        vc["pct"]  = (vc["n"] / total_n * 100).round(1)
-        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color],
-                     labels={"r": "", "n": ""}, text="text")
+        vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], text="text", labels={"r":"","n":""})
         fig.update_traces(textposition="outside", textfont=dict(size=9))
-        fig = clean_layout(fig, title=tc(key, lang), height=270)
+        fig = clean_layout(fig, title=title, height=270)
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
 c1, c2, c3 = st.columns(3)
-for col_lbl, key, color, container in [
-    ("rooming_label",   "c_rooming",  TEAL,   c1),
-    ("milk_label",      "c_milk",     ORANGE, c2),
-    ("emergency_label", "c_emergency",BLUISH, c3),
+for col_lbl, title, color, container in [
+    ("rooming_label", {"EN":"Baby with mother","FR":"Bébé avec mère","ES":"Bebé con madre"}[lang],     TEAL,   c1),
+    ("milk_label",    {"EN":"Breastfeeding only","FR":"Allaitement exclusif","ES":"Lactancia exclusiva"}[lang], ORANGE, c2),
+    ("emergency_label",{"EN":"Confident in emergency care","FR":"Confiant en urgences","ES":"Confianza en urgencias"}[lang], BLUISH, c3),
 ]:
     if col_lbl in df.columns:
-        vc = df[col_lbl].value_counts().reset_index(); vc.columns = ["r", "n"]
-        vc["pct"]  = (vc["n"] / total_n * 100).round(1)
-        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
-        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color],
-                     labels={"r": "", "n": ""}, text="text")
+        vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+        fig = px.bar(vc, x="n", y="r", orientation="h", color_discrete_sequence=[color], text="text", labels={"r":"","n":""})
         fig.update_traces(textposition="outside", textfont=dict(size=9))
-        fig = clean_layout(fig, title=tc(key, lang), height=270)
+        fig = clean_layout(fig, title=title, height=270)
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
 # ── Satisfaction ──────────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_satisfaction", lang)}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">{"Satisfaction" if lang=="EN" else "Satisfaction" if lang=="FR" else "Satisfacción"}</div>', unsafe_allow_html=True)
 if "expect_label" in df.columns and "satisfaction_label" in df.columns:
     c1, c2 = st.columns(2)
     q_order = QUALITY_ORDER[lang]
-    for col_lbl, key, container in [
-        ("expect_label",       "sat_expect", c1),
-        ("satisfaction_label", "sat_actual", c2),
+    for col_lbl, title, container in [
+        ("expect_label",       {"EN":"Expected","FR":"Attendu","ES":"Esperado"}[lang],      c1),
+        ("satisfaction_label", {"EN":"Actual","FR":"Reçu","ES":"Recibido"}[lang],           c2),
     ]:
-        vc = df[col_lbl].value_counts().reindex(q_order, fill_value=0).reset_index()
-        vc.columns = ["r", "n"]
-        vc["pct"]  = (vc["n"] / total_n * 100).round(1)
-        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['pct']}%)", axis=1)
+        vc = df[col_lbl].value_counts().reindex(q_order, fill_value=0).reset_index(); vc.columns=["r","n"]
+        vc["text"] = vc.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
         fig = px.bar(vc, x="r", y="n", color="r", color_discrete_sequence=QUALITY_COLORS,
-                     labels={"r": "", "n": tc("responses", lang)},
-                     category_orders={"r": q_order}, text="text")
+                     category_orders={"r":q_order}, text="text", labels={"r":"","n":""})
         fig.update_traces(textposition="outside", textfont=dict(size=9))
-        fig = clean_layout(fig, title=tc(key, lang), height=310)
+        fig = clean_layout(fig, title=title, height=310)
         fig.update_layout(showlegend=False)
         fig.update_xaxes(showgrid=False); fig.update_yaxes(gridcolor="#eeeeee")
         container.plotly_chart(fig, use_container_width=True)
 
-# ── Companion Emotions ────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_emotions", lang)}</div>', unsafe_allow_html=True)
+# ── Emotions ──────────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Companion Emotions" if lang=="EN" else "Émotions du acompagnant" if lang=="FR" else "Emociones del Acompañante"}</div>', unsafe_allow_html=True)
 if "emotion_label" in df.columns:
     pos_set = POSITIVE_EMO_C.get(lang, POSITIVE_EMO_C["EN"])
-    emo_vc = df["emotion_label"].dropna().value_counts().reset_index()
-    emo_vc.columns = ["Emotion", "n"]
-    emo_vc = emo_vc[emo_vc["Emotion"] != "?"]
-    emo_vc["Pct"]  = (emo_vc["n"] / total_n * 100).round(1)
+    emo_vc = df["emotion_label"].dropna().value_counts().reset_index(); emo_vc.columns=["Emotion","n"]
+    emo_vc["Pct"]  = (emo_vc["n"]/total_n*100).round(1)
     emo_vc["text"] = emo_vc.apply(lambda x: f"{x['n']} ({x['Pct']}%)", axis=1)
-    emo_vc["Type"] = emo_vc["Emotion"].apply(
-        lambda e: tc("positive", lang) if e in pos_set else tc("negative", lang)
-    )
+    pos_lbl = {"EN":"Positive","FR":"Positif","ES":"Positivo"}[lang]
+    neg_lbl = {"EN":"Negative","FR":"Négatif","ES":"Negativo"}[lang]
+    emo_vc["Type"] = emo_vc["Emotion"].apply(lambda e: pos_lbl if e in pos_set else neg_lbl)
     emo_vc = emo_vc.sort_values("Pct", ascending=True)
     fig = px.bar(emo_vc, x="Pct", y="Emotion", color="Type", orientation="h",
-                 color_discrete_map={tc("positive", lang): TEAL, tc("negative", lang): VERMILION},
-                 labels={"Pct": tc("pct", lang), "Emotion": ""}, text="text")
+                 color_discrete_map={pos_lbl:TEAL, neg_lbl:VERMILION},
+                 labels={"Pct":"%","Emotion":""}, text="text")
     fig.update_traces(textposition="outside", textfont=dict(size=9))
-    fig.update_layout(legend=dict(orientation="h", y=-0.12, x=0.5, xanchor="center", font=dict(size=10)),
-                      margin=dict(t=8, b=60, l=8, r=8), height=440,
-                      plot_bgcolor="white", paper_bgcolor="white",
-                      font=dict(family="DM Sans, sans-serif"))
+    fig.update_layout(legend=dict(orientation="h",y=-0.12,x=0.5,xanchor="center"),
+                      margin=dict(t=8,b=60,l=8,r=8), height=440,
+                      plot_bgcolor="white", paper_bgcolor="white")
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
-    st.caption({"EN": "Single emotion selected per respondent.",
-                "FR": "Une seule émotion sélectionnée par répondant.",
-                "ES": "Una sola emoción seleccionada por encuestado."}[lang])
-    st.plotly_chart(fig, use_container_width=True)
-
-# ── Information Before Discharge ──────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{tc("s_discharge", lang)}</div>', unsafe_allow_html=True)
-if "info" in df.columns:
-    info_keys = [1, 2, 3, 4]
-    info_labels = INFO_LABELS_C[lang]
-    counts = parse_multiselect(df["info"], info_keys)
-    rows = [{"Topic": info_labels[k], "n": counts[k], "Pct": round(counts[k] / total_n * 100, 1)}
-            for k in info_keys]
-    idf = pd.DataFrame(rows).sort_values("Pct")
-    idf["text"] = idf.apply(lambda x: f"{x['n']} ({x['Pct']}%)", axis=1)
-    fig = px.bar(idf, x="Pct", y="Topic", orientation="h", color_discrete_sequence=[PINK],
-                 labels={"Pct": tc("pct", lang), "Topic": ""}, text="text")
-    fig.update_traces(textposition="outside", textfont=dict(size=9))
-    fig.update_layout(margin=dict(t=16, b=8, l=8, r=8), height=220,
-                      plot_bgcolor="white", paper_bgcolor="white",
-                      font=dict(family="DM Sans, sans-serif"))
-    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
+    st.caption({"EN":"Single emotion per respondent.","FR":"Une émotion par répondant.","ES":"Una emoción por encuestado."}[lang])
     st.plotly_chart(fig, use_container_width=True)
 
 # ── Raw data ──────────────────────────────────────────────────────────────────
-with st.expander(tc("raw_data", lang)):
-    hide = [c for c in df.columns if c.startswith("_") or c == "meta/rootUuid"]
+with st.expander({"EN":"📋 Raw data","FR":"📋 Données brutes","ES":"📋 Datos brutos"}[lang]):
+    hide = [c for c in df.columns if c.startswith("_") or c=="meta/rootUuid"]
     show = [c for c in df.columns if c not in hide]
     st.dataframe(df[show], use_container_width=True, height=400)
-    csv = df[show].to_csv(index=False).encode("utf-8")
-    st.download_button(tc("download", lang), csv,
+    st.download_button({"EN":"⬇ Download CSV","FR":"⬇ Télécharger CSV","ES":"⬇ Descargar CSV"}[lang],
+                       df[show].to_csv(index=False).encode("utf-8"),
                        f"ici_companion_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
