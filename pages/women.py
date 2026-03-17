@@ -113,7 +113,15 @@ if len(facilities_available) > 1:
     compare_mode = st.sidebar.checkbox(tw("compare_mode", lang), value=False)
     if len(countries_available) > 1:
         sel_country = st.sidebar.selectbox(tw("country", lang),
-                                           [tw("all", lang)] + countries_available)
+                                           [tw("all", lang)] + countries_available,
+                                           key="sel_country_w")
+        # Reset facility/method filters when country changes
+        prev_country = st.session_state.get("_prev_country_w", sel_country)
+        if sel_country != prev_country:
+            for k in ["sel_fac_w", "sel_method_w", "sel_risk_w"]:
+                if k in st.session_state:
+                    del st.session_state[k]
+        st.session_state["_prev_country_w"] = sel_country
         if sel_country != tw("all", lang):
             df = df[df["_country"] == sel_country]
             facilities_available = df["_facility"].unique().tolist()
@@ -125,7 +133,8 @@ if len(facilities_available) > 1:
             df = df[df["_facility"].isin(sel_facs)]
     else:
         sel_fac = st.sidebar.selectbox(tw("facility", lang),
-                                       [tw("all", lang)] + facilities_available)
+                                       [tw("all", lang)] + facilities_available,
+                                       key="sel_fac_w")
         if sel_fac != tw("all", lang):
             df = df[df["_facility"] == sel_fac]
 else:
@@ -135,12 +144,12 @@ df = sidebar_date_filter(df, lang)
 
 if "method_label" in df.columns:
     opts = [tw("all", lang)] + sorted(df["method_label"].dropna().unique().tolist())
-    sel = st.sidebar.selectbox(tw("birth_method_f", lang), opts)
+    sel = st.sidebar.selectbox(tw("birth_method_f", lang), opts, key="sel_method_w")
     if sel != tw("all", lang):
         df = df[df["method_label"] == sel]
 if "risk_label" in df.columns:
     opts = [tw("all", lang)] + sorted(df["risk_label"].dropna().unique().tolist())
-    sel = st.sidebar.selectbox(tw("high_risk_f", lang), opts)
+    sel = st.sidebar.selectbox(tw("high_risk_f", lang), opts, key="sel_risk_w")
     if sel != tw("all", lang):
         df = df[df["risk_label"] == sel]
 
@@ -153,6 +162,11 @@ sidebar_logo()
 
 # ── Hero banner ──────────────────────────────────────────────────────────────
 total_n = len(df)
+if total_n == 0:
+    st.warning({"EN": "No data for the selected filters.",
+                "FR": "Aucune donnée pour les filtres sélectionnés.",
+                "ES": "No hay datos para los filtros seleccionados."}.get(lang, "No data."))
+    st.stop()
 sat_good = (df["satisfaction"].isin([4, 5])).sum() / total_n * 100 if "satisfaction" in df.columns and total_n > 0 else 0
 
 if "weeks_clean" in df.columns and df["weeks_clean"].notna().sum() > 0:
