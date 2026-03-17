@@ -35,8 +35,19 @@ if not KOBO_TOKEN:
     st.stop()
 
 # ── Language selector ────────────────────────────────────────────────────────
-col_lang = st.columns([6, 1])[1]
-lang = col_lang.radio("", ["EN", "FR", "ES"], horizontal=True, label_visibility="collapsed", key="lang_w")
+# ── Language selector (pill style) ──────────────────────────────────────────
+if "lang_w" not in st.session_state:
+    st.session_state["lang_w"] = "EN"
+
+_lang_cols = st.columns([1, 1, 1, 9])
+for _i, _l in enumerate(["EN", "FR", "ES"]):
+    _active = st.session_state["lang_w"] == _l
+    _style  = "background:#009E73;color:white;border:none;border-radius:20px;padding:4px 14px;font-weight:600;cursor:pointer;" if _active else               "background:#f0f0f0;color:#444;border:none;border-radius:20px;padding:4px 14px;cursor:pointer;"
+    if _lang_cols[_i].button(_l, key=f"lang_w_btn_{_l}", use_container_width=True,
+                              type="primary" if _active else "secondary"):
+        st.session_state["lang_w"] = _l
+        st.rerun()
+lang = st.session_state["lang_w"]
 
 # ── Load data ────────────────────────────────────────────────────────────────
 with st.spinner("Loading data…" if lang == "EN" else "Chargement…"):
@@ -349,13 +360,12 @@ if "no_deliveries" in df.columns:
 
 # ── Treemap: birth method × emotions ─────────────────────────────────────────
 if "method_label" in df.columns and "emotion" in df.columns:
-    treemap_title = {"EN": "Emotional Experience by Birth Method",
-                     "FR": "Vécu émotionnel par mode d'accouchement"}[lang]
+    treemap_title = {"EN": "Emotional Experience by Birth Method", "FR": "Vécu émotionnel par mode d'accouchement", "ES": "Experiencia emocional por vía de nacimiento"}.get(lang, "Emotional Experience by Birth Method")
     pos_keys = [1, 4, 6, 7, 9, 11]
     neg_keys = [2, 3, 5, 8, 10, 12]
-    pos_lbl  = {"EN": "Positive emotions", "FR": "Émotions positives"}[lang]
-    neg_lbl  = {"EN": "Negative emotions", "FR": "Émotions négatives"}[lang]
-    root_lbl = {"EN": "All births",        "FR": "Tous accouchements"}[lang]
+    pos_lbl  = {"EN": "Positive emotions", "FR": "Émotions positives", "ES": "Emociones positivas"}.get(lang, "Positive emotions")
+    neg_lbl  = {"EN": "Negative emotions", "FR": "Émotions négatives", "ES": "Emociones negativas"}.get(lang, "Negative emotions")
+    root_lbl = {"EN": "All births", "FR": "Tous accouchements", "ES": "Todos los partos"}.get(lang, "All births")
     tm_rows  = []
     for mcode in [1, 2, 3, 4, 5]:
         mlabel = METHOD_MAP[lang].get(mcode, str(mcode))
@@ -421,8 +431,7 @@ if rows:
 
 # ── Bubble: age × parity ──────────────────────────────────────────────────────
 if "age" in df.columns and "no_deliveries" in df.columns:
-    bubble_title = {"EN": "Respondent Profile — Age × Number of Previous Deliveries",
-                    "FR": "Profil des répondantes — Âge × Nombre d'accouchements précédents"}[lang]
+    bubble_title = {"EN": "Respondent Profile — Age × Number of Previous Deliveries", "FR": "Profil des répondantes — Âge × Nombre d'accouchements précédents", "ES": "Perfil — Edad × Número de partos anteriores"}.get(lang, "Respondent Profile")
     bdf = df.copy()
     bdf["age_grp"] = pd.cut(bdf["age"], bins=[0, 24, 29, 34, 39, 99],
                              labels=["<25", "25–29", "30–34", "35–39", "40+"])
@@ -433,8 +442,8 @@ if "age" in df.columns and "no_deliveries" in df.columns:
     bubble["pct"]    = (bubble["n"] / bubble["n"].sum() * 100).round(1)
     fig = px.scatter(bubble, x="age_grp", y="nd_str", size="n", color="n",
                      color_continuous_scale=[[0, "#e8f4f0"], [0.4, SKY], [1, TEAL]], size_max=55,
-                     labels={"age_grp": {"EN": "Age group", "FR": "Groupe d'âge"}[lang],
-                             "nd_str": {"EN": "Previous deliveries", "FR": "Accouchements précédents"}[lang],
+                     labels={"age_grp": {"EN": "Age group", "FR": "Groupe d'âge", "ES": "Grupo de edad"}.get(lang, "Age group"),
+                             "nd_str": {"EN": "Previous deliveries", "FR": "Accouchements précédents", "ES": "Partos anteriores"}.get(lang, "Previous deliveries"),
                              "n": tw("responses", lang)},
                      hover_data={"n": True, "pct": True})
     fig.update_layout(
@@ -444,7 +453,7 @@ if "age" in df.columns and "no_deliveries" in df.columns:
         coloraxis_showscale=False, font=dict(family="DM Sans, sans-serif"),
         xaxis=dict(showgrid=True, gridcolor="#eeeeee"),
         yaxis=dict(showgrid=True, gridcolor="#eeeeee",
-                   title={"EN": "Previous deliveries", "FR": "Accouchements précédents"}[lang]),
+                   title={"EN": "Previous deliveries", "FR": "Accouchements précédents", "ES": "Partos anteriores"}.get(lang, "Previous deliveries")),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -525,13 +534,12 @@ for col_lbl, key, color, container in [
 
 # ── Sankey: Risk → Birth method → Skin-to-skin ───────────────────────────────
 if "risk" in df.columns and "method" in df.columns and "skin_int" in df.columns:
-    sk_title = {"EN": "Care Journey: Risk Profile → Birth Method → Skin-to-Skin Contact",
-                "FR": "Parcours : Profil de risque → Mode d'accouchement → Peau à peau"}[lang]
-    risk_lbl   = {1: {"EN": "High-risk", "FR": "Grossesse à risque"}[lang],
-                  2: {"EN": "Low-risk",  "FR": "Grossesse normale"}[lang]}
+    sk_title = {"EN": "Care Journey: Risk Profile → Birth Method → Skin-to-Skin Contact", "FR": "Parcours : Profil de risque → Mode d'accouchement → Peau à peau", "ES": "Recorrido: Perfil de riesgo → Vía de nacimiento → Piel con piel"}.get(lang, "Care Journey")
+    risk_lbl   = {1: {"EN": "High-risk", "FR": "Grossesse à risque", "ES": "Alto riesgo"}.get(lang, "High-risk"),
+                  2: {"EN": "Low-risk",  "FR": "Grossesse normale",  "ES": "Bajo riesgo"}.get(lang, "Low-risk")}
     method_lbl = {k: METHOD_MAP[lang][k] for k in [1, 2, 3, 4]}
-    skin_lbl   = {1: {"EN": "✓ Immediate skin-to-skin", "FR": "✓ Peau à peau immédiat"}[lang],
-                  0: {"EN": "✗ Not immediate / No",     "FR": "✗ Pas immédiat / Non"}[lang]}
+    skin_lbl   = {1: {"EN": "✓ Immediate skin-to-skin", "FR": "✓ Peau à peau immédiat", "ES": "✓ Piel con piel inmediato"}.get(lang, "✓ Immediate skin-to-skin"),
+                  0: {"EN": "✗ Not immediate / No",     "FR": "✗ Pas immédiat / Non",    "ES": "✗ No inmediato / No"}.get(lang, "✗ Not immediate / No")}
     fdf = df[df["risk"].isin([1, 2]) & df["method"].isin([1, 2, 3, 4])].copy()
     fdf["skin_bin"] = (fdf["skin_int"] == 1).astype(int)
     sn = len(fdf)
