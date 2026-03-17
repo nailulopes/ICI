@@ -59,7 +59,7 @@ if raw.empty:
 
 def prep(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce")
+    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce", utc=False)
     for col, mp in [
         ("method", METHOD_MAP[lang]), ("education", EDUCATION_MAP[lang]),
         ("risk", RISK_MAP[lang]), ("satisfaction", QUALITY_MAP[lang]),
@@ -72,14 +72,14 @@ def prep(df: pd.DataFrame) -> pd.DataFrame:
     ]:
         if col in df.columns:
             df[col] = to_int(df[col])
-            df[col + "_label"] = df[col].map(mp).fillna("?")
+            df[col + "_label"] = df[col].map(mp).fillna(pd.NA)
     for col, label in LIKERT_QS_W[lang].items():
         if col in df.columns:
             df[col] = to_int(df[col])
-            df[col + "_label"] = df[col].map(LIKERT5_MAP[lang]).fillna("?")
+            df[col + "_label"] = df[col].map(LIKERT5_MAP[lang]).fillna(pd.NA)
     if "skin" in df.columns:
         df["skin_int"] = first_token_int(df["skin"])
-        df["skin_label"] = df["skin_int"].map(SKIN_MAP[lang]).fillna("?")
+        df["skin_label"] = df["skin_int"].map(SKIN_MAP[lang]).fillna(pd.NA)
     if "age" in df.columns:
         df["age"] = to_int(df["age"])
         df["age_group"] = pd.cut(df["age"], bins=[0, 19, 24, 29, 34, 39, 99],
@@ -133,15 +133,15 @@ else:
 
 df = sidebar_date_filter(df, lang)
 
-# Method/risk options built from already-filtered df — no stale values possible
+# Method/risk: always index=0 (All) as default, options from already-filtered df
 if "method_label" in df.columns:
     method_opts = [tw("all", lang)] + sorted(df["method_label"].dropna().unique().tolist())
-    sel_method = st.sidebar.selectbox(tw("birth_method_f", lang), method_opts)
+    sel_method = st.sidebar.selectbox(tw("birth_method_f", lang), method_opts, index=0)
     if sel_method != tw("all", lang):
         df = df[df["method_label"] == sel_method]
 if "risk_label" in df.columns:
     risk_opts = [tw("all", lang)] + sorted(df["risk_label"].dropna().unique().tolist())
-    sel_risk = st.sidebar.selectbox(tw("high_risk_f", lang), risk_opts)
+    sel_risk = st.sidebar.selectbox(tw("high_risk_f", lang), risk_opts, index=0)
     if sel_risk != tw("all", lang):
         df = df[df["risk_label"] == sel_risk]
 
