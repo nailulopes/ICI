@@ -113,16 +113,7 @@ if len(facilities_available) > 1:
     compare_mode = st.sidebar.checkbox(tw("compare_mode", lang), value=False)
     if len(countries_available) > 1:
         sel_country = st.sidebar.selectbox(tw("country", lang),
-                                           [tw("all", lang)] + countries_available,
-                                           key="sel_country_w")
-        # Reset dependent filters when country changes and rerun immediately
-        prev_country = st.session_state.get("_prev_country_w", sel_country)
-        if sel_country != prev_country:
-            st.session_state["_prev_country_w"] = sel_country
-            for k in ["sel_fac_w", "sel_method_w", "sel_risk_w"]:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.rerun()
+                                           [tw("all", lang)] + countries_available)
         if sel_country != tw("all", lang):
             df = df[df["_country"] == sel_country]
             facilities_available = df["_facility"].unique().tolist()
@@ -134,8 +125,7 @@ if len(facilities_available) > 1:
             df = df[df["_facility"].isin(sel_facs)]
     else:
         sel_fac = st.sidebar.selectbox(tw("facility", lang),
-                                       [tw("all", lang)] + facilities_available,
-                                       key="sel_fac_w")
+                                       [tw("all", lang)] + facilities_available)
         if sel_fac != tw("all", lang):
             df = df[df["_facility"] == sel_fac]
 else:
@@ -143,16 +133,17 @@ else:
 
 df = sidebar_date_filter(df, lang)
 
+# Method/risk options built from already-filtered df — no stale values possible
 if "method_label" in df.columns:
-    opts = [tw("all", lang)] + sorted(df["method_label"].dropna().unique().tolist())
-    sel = st.sidebar.selectbox(tw("birth_method_f", lang), opts, key="sel_method_w")
-    if sel != tw("all", lang):
-        df = df[df["method_label"] == sel]
+    method_opts = [tw("all", lang)] + sorted(df["method_label"].dropna().unique().tolist())
+    sel_method = st.sidebar.selectbox(tw("birth_method_f", lang), method_opts)
+    if sel_method != tw("all", lang):
+        df = df[df["method_label"] == sel_method]
 if "risk_label" in df.columns:
-    opts = [tw("all", lang)] + sorted(df["risk_label"].dropna().unique().tolist())
-    sel = st.sidebar.selectbox(tw("high_risk_f", lang), opts, key="sel_risk_w")
-    if sel != tw("all", lang):
-        df = df[df["risk_label"] == sel]
+    risk_opts = [tw("all", lang)] + sorted(df["risk_label"].dropna().unique().tolist())
+    sel_risk = st.sidebar.selectbox(tw("high_risk_f", lang), risk_opts)
+    if sel_risk != tw("all", lang):
+        df = df[df["risk_label"] == sel_risk]
 
 st.sidebar.metric(tw("filtered", lang), len(df))
 if st.sidebar.button(tw("refresh", lang)):
