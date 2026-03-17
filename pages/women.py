@@ -115,13 +115,14 @@ if len(facilities_available) > 1:
         sel_country = st.sidebar.selectbox(tw("country", lang),
                                            [tw("all", lang)] + countries_available,
                                            key="sel_country_w")
-        # Reset facility/method filters when country changes
+        # Reset dependent filters when country changes and rerun immediately
         prev_country = st.session_state.get("_prev_country_w", sel_country)
         if sel_country != prev_country:
+            st.session_state["_prev_country_w"] = sel_country
             for k in ["sel_fac_w", "sel_method_w", "sel_risk_w"]:
                 if k in st.session_state:
                     del st.session_state[k]
-        st.session_state["_prev_country_w"] = sel_country
+            st.rerun()
         if sel_country != tw("all", lang):
             df = df[df["_country"] == sel_country]
             facilities_available = df["_facility"].unique().tolist()
