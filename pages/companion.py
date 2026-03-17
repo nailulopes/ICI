@@ -37,8 +37,19 @@ if not KOBO_TOKEN:
     st.stop()
 
 # ── Language selector ────────────────────────────────────────────────────────
-col_lang = st.columns([6, 1])[1]
-lang = col_lang.radio("", ["EN", "FR", "ES"], horizontal=True, label_visibility="collapsed", key="lang_c")
+# ── Language selector (pill style) ──────────────────────────────────────────
+if "lang_c" not in st.session_state:
+    st.session_state["lang_c"] = "EN"
+
+_lang_cols = st.columns([1, 1, 1, 9])
+for _i, _l in enumerate(["EN", "FR", "ES"]):
+    _active = st.session_state["lang_c"] == _l
+    _style  = "background:#009E73;color:white;border:none;border-radius:20px;padding:4px 14px;font-weight:600;cursor:pointer;" if _active else               "background:#f0f0f0;color:#444;border:none;border-radius:20px;padding:4px 14px;cursor:pointer;"
+    if _lang_cols[_i].button(_l, key=f"lang_c_btn_{_l}", use_container_width=True,
+                              type="primary" if _active else "secondary"):
+        st.session_state["lang_c"] = _l
+        st.rerun()
+lang = st.session_state["lang_c"]
 
 # ── Load data ────────────────────────────────────────────────────────────────
 with st.spinner("Loading companion data…" if lang == "EN" else "Chargement acompagnants…"):
