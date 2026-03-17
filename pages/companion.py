@@ -61,13 +61,13 @@ if raw.empty:
 
 def prep_companion(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce")
+    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce", utc=False)
 
     # Numeric conversions
     # Map companion emotion codes to labels
     if "emotion" in df.columns:
         df["emotion"] = to_int(df["emotion"])
-        df["emotion_label"] = df["emotion"].map(COMP_EMOTION_MAP.get(lang, COMP_EMOTION_MAP["EN"])).fillna("?")
+        df["emotion_label"] = df["emotion"].map(COMP_EMOTION_MAP.get(lang, COMP_EMOTION_MAP["EN"])).fillna(pd.NA)
 
     for col in ["age", "education", "comp", "method", "introduction", "spoke",
                 "privacy", "respect", "comp_001", "verbal", "phys", "treatment",
@@ -104,12 +104,12 @@ def prep_companion(df: pd.DataFrame) -> pd.DataFrame:
         ("treatment",  COMP_TREATMENT_MAP[lang]),
     ]:
         if col in df.columns:
-            df[col + "_label"] = df[col].map(mp).fillna("?")
+            df[col + "_label"] = df[col].map(mp).fillna(pd.NA)
 
     # Likert items
     for col in ["introduction", "spoke", "privacy", "respect", "comp_001", "coop"]:
         if col in df.columns:
-            df[col + "_label"] = df[col].map(LIKERT5_MAP[lang]).fillna("?")
+            df[col + "_label"] = df[col].map(LIKERT5_MAP[lang]).fillna(pd.NA)
 
     # Age
     if "age" in df.columns:
