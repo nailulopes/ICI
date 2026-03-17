@@ -26,7 +26,7 @@ from ici_shared import (
     COMP_COMFORT_MAP, CHOICES_MAP, EMERGENCY_MAP, COMP_ROOMING_MAP,
     MILK_MAP, ACCOMPANY_MAP, EXTRA_MAP, COMP_VALUES_MAP, COMP_DECISIONS_MAP,
     COMP_COOP_MAP, COMP_TREATMENT_MAP, COMP_PHARMA_MAP,
-    LIKERT_QS_C, POSITIVE_EMO_C, INFO_LABELS_C,
+    LIKERT_QS_C, POSITIVE_EMO_C, INFO_LABELS_C, COMP_EMOTION_MAP,
 )
 
 inject_css()
@@ -38,7 +38,7 @@ if not KOBO_TOKEN:
 
 # ── Language selector ────────────────────────────────────────────────────────
 col_lang = st.columns([6, 1])[1]
-lang = col_lang.radio("", ["EN", "FR"], horizontal=True, label_visibility="collapsed", key="lang_c")
+lang = col_lang.radio("", ["EN", "FR", "ES"], horizontal=True, label_visibility="collapsed", key="lang_c")
 
 # ── Load data ────────────────────────────────────────────────────────────────
 with st.spinner("Loading companion data…" if lang == "EN" else "Chargement acompagnants…"):
@@ -53,6 +53,11 @@ def prep_companion(df: pd.DataFrame) -> pd.DataFrame:
     df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce")
 
     # Numeric conversions
+    # Map companion emotion codes to labels
+    if "emotion" in df.columns:
+        df["emotion"] = to_int(df["emotion"])
+        df["emotion_label"] = df["emotion"].map(COMP_EMOTION_MAP.get(lang, COMP_EMOTION_MAP["EN"])).fillna("?")
+
     for col in ["age", "education", "comp", "method", "introduction", "spoke",
                 "privacy", "respect", "comp_001", "verbal", "phys", "treatment",
                 "payment", "extra", "values", "decisions", "complab", "comp_deliv",
@@ -126,7 +131,7 @@ if len(facilities_available) > 1:
 else:
     st.sidebar.markdown(f"**{tc('facility', lang)}:** {facilities_available[0]}" if facilities_available else "")
 
-df = sidebar_date_filter(df, lang)
+df = sidebar_date_filter(df, lang, key_prefix="c")
 total_n = len(df)
 
 # Birth method filter
@@ -195,8 +200,9 @@ st.markdown(f'<div class="section-title">{tc("s_timeline", lang)}</div>', unsafe
 if "_submission_time" in df.columns and df["_submission_time"].notna().any():
     freq_opts = [tc("grp_month", lang), tc("grp_week", lang), tc("grp_day", lang)]
     freq = st.radio(tc("grp_by", lang), freq_opts, horizontal=True, key="freq_c")
-    fmap = {tc("grp_day", lang): "D", tc("grp_week", lang): "W", tc("grp_month", lang): "ME"}
-    ts = df.set_index("_submission_time").resample(fmap[freq]).size().reset_index(name="n")
+    fmap = {tc("grp_day", lang): "D", tc("grp_week", lang): "W", tc("grp_month", lang): "MS"}
+    ts = df.groupby(pd.Grouper(key="_submission_time", freq=fmap[freq])).size().reset_index(name="n")
+    ts = ts[ts["n"] > 0]
     fig = px.area(ts, x="_submission_time", y="n",
                   labels={"_submission_time": "", "n": tc("responses", lang)},
                   color_discrete_sequence=[BLUISH])
@@ -393,21 +399,14 @@ if "expect_label" in df.columns and "satisfaction_label" in df.columns:
         container.plotly_chart(fig, use_container_width=True)
 
 # ── Companion Emotions ────────────────────────────────────────────────────────
-# NOTE: Companion emotion is single-select (not multiselect like women's form)
 st.markdown(f'<div class="section-title">{tc("s_emotions", lang)}</div>', unsafe_allow_html=True)
-if "emotion" in df.columns:
-    emo_series = df["emotion"].dropna().astype(str)
-    # emotion field stores numeric codes in raw data — try to map via English labels
-    # In this dataset emotion appears to come through as text from labeled export
-    # We use value_counts directly on whatever format is present
-    emo_vc = emo_series.value_counts().reset_index()
+if "emotion_label" in df.columns:
+    pos_set = POSITIVE_EMO_C.get(lang, POSITIVE_EMO_C["EN"])
+    emo_vc = df["emotion_label"].dropna().value_counts().reset_index()
     emo_vc.columns = ["Emotion", "n"]
-    emo_vc["Pct"] = (emo_vc["n"] / total_n * 100).round(1)
+    emo_vc = emo_vc[emo_vc["Emotion"] != "?"]
+    emo_vc["Pct"]  = (emo_vc["n"] / total_n * 100).round(1)
     emo_vc["text"] = emo_vc.apply(lambda x: f"{x['n']} ({x['Pct']}%)", axis=1)
-
-    # Classify positive/negative
-    pos_set = POSITIVE_EMO_C["EN"]  # use EN set as base (raw data is numeric codes)
-    # For labeled data (text), match directly; for raw (numeric), leave neutral
     emo_vc["Type"] = emo_vc["Emotion"].apply(
         lambda e: tc("positive", lang) if e in pos_set else tc("negative", lang)
     )
@@ -422,7 +421,8 @@ if "emotion" in df.columns:
                       font=dict(family="DM Sans, sans-serif"))
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     st.caption({"EN": "Single emotion selected per respondent.",
-                "FR": "Une seule émotion sélectionnée par répondant."}[lang])
+                "FR": "Une seule émotion sélectionnée par répondant.",
+                "ES": "Una sola emoción seleccionada por encuestado."}[lang])
     st.plotly_chart(fig, use_container_width=True)
 
 # ── Information Before Discharge ──────────────────────────────────────────────
