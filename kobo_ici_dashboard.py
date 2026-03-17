@@ -65,17 +65,13 @@ if st.session_state.role is None:
 # ── Route to correct pages based on role ─────────────────────────────────────
 role = st.session_state.role
 
-if role == "admin":
-    pages = [
-        st.Page("pages/women.py",    title="Women's Experience", icon="👩"),
-        st.Page("pages/companion.py",title="Companion Experience", icon="🤝"),
-        st.Page("pages/compare.py",  title="Facility Comparison", icon="📊"),
-    ]
-else:
-    pages = [
-        st.Page("pages/women.py",    title="Women's Experience", icon="👩"),
-        st.Page("pages/companion.py",title="Companion Experience", icon="🤝"),
-    ]
+# All roles get access to all pages
+# compare.py handles what each role can see
+pages = [
+    st.Page("pages/women.py",    title="Women's Experience", icon="👩"),
+    st.Page("pages/companion.py",title="Companion Experience", icon="🤝"),
+    st.Page("pages/compare.py",  title="Facility Comparison", icon="📊"),
+]
 
 pg = st.navigation(pages)
 pg.run()
