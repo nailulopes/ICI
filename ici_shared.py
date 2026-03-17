@@ -205,8 +205,8 @@ def lang_selector(key: str) -> str:
             st.rerun()
     return st.session_state[key]
 
-def date_filter(df: pd.DataFrame) -> pd.DataFrame:
-    """Simple date range filter — no keys, no session_state."""
+def date_filter(df: pd.DataFrame, key: str = "df") -> pd.DataFrame:
+    """Simple date range filter with unique keys per page."""
     if "_submission_time" not in df.columns or df["_submission_time"].isna().all():
         return df
     import calendar
@@ -215,11 +215,11 @@ def date_filter(df: pd.DataFrame) -> pd.DataFrame:
     months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     st.sidebar.markdown("**Date range**")
     c1, c2 = st.sidebar.columns(2)
-    sy = c1.selectbox("", years, label_visibility="collapsed")
-    sm = c2.selectbox("", months, index=mn.month-1, label_visibility="collapsed")
+    sy = c1.selectbox("", years, key=f"sy_{key}", label_visibility="collapsed")
+    sm = c2.selectbox("", months, index=mn.month-1, key=f"sm_{key}", label_visibility="collapsed")
     c3, c4 = st.sidebar.columns(2)
-    ey = c3.selectbox("", years, index=len(years)-1, label_visibility="collapsed")
-    em = c4.selectbox("", months, index=mx.month-1, label_visibility="collapsed")
+    ey = c3.selectbox("", years, index=len(years)-1, key=f"ey_{key}", label_visibility="collapsed")
+    em = c4.selectbox("", months, index=mx.month-1, key=f"em_{key}", label_visibility="collapsed")
     sdt = datetime(sy, months.index(sm)+1, 1).date()
     edt = datetime(ey, months.index(em)+1, calendar.monthrange(ey, months.index(em)+1)[1]).date()
     return df[(df["_submission_time"].dt.date >= sdt) & (df["_submission_time"].dt.date <= edt)]
