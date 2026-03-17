@@ -263,11 +263,11 @@ def sidebar_date_filter(df, lang, key_prefix="w"):
     lbl = {"EN": "Date range", "FR": "Période", "ES": "Rango de fechas"}.get(lang, "Date range")
     st.sidebar.markdown(f"**{lbl}**")
     dc1, dc2 = st.sidebar.columns(2)
-    start_year  = dc1.selectbox("", years, index=0, key=f"sy_{key_prefix}", label_visibility="collapsed")
-    start_month = dc2.selectbox("", months, index=mn.month - 1, key=f"sm_{key_prefix}", label_visibility="collapsed")
+    start_year  = dc1.selectbox("", years, label_visibility="collapsed")
+    start_month = dc2.selectbox("", months, index=mn.month - 1, label_visibility="collapsed")
     dc3, dc4 = st.sidebar.columns(2)
-    end_year  = dc3.selectbox("", years, index=len(years) - 1, key=f"ey_{key_prefix}", label_visibility="collapsed")
-    end_month = dc4.selectbox("", months, index=mx.month - 1, key=f"em_{key_prefix}", label_visibility="collapsed")
+    end_year  = dc3.selectbox("", years, index=len(years) - 1, label_visibility="collapsed")
+    end_month = dc4.selectbox("", months, index=mx.month - 1, label_visibility="collapsed")
     sm_idx = months.index(start_month) + 1
     em_idx = months.index(end_month) + 1
     start_dt = datetime(start_year, sm_idx, 1).date()
