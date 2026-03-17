@@ -36,7 +36,7 @@ if not KOBO_TOKEN:
 
 # ── Language selector ────────────────────────────────────────────────────────
 col_lang = st.columns([6, 1])[1]
-lang = col_lang.radio("", ["EN", "FR"], horizontal=True, label_visibility="collapsed", key="lang_w")
+lang = col_lang.radio("", ["EN", "FR", "ES"], horizontal=True, label_visibility="collapsed", key="lang_w")
 
 # ── Load data ────────────────────────────────────────────────────────────────
 with st.spinner("Loading data…" if lang == "EN" else "Chargement…"):
@@ -250,8 +250,9 @@ st.markdown(f'<div class="section-title">{tw("s_timeline", lang)}</div>', unsafe
 if "_submission_time" in df.columns and df["_submission_time"].notna().any():
     freq_opts = [tw("grp_month", lang), tw("grp_week", lang), tw("grp_day", lang)]
     freq = st.radio(tw("grp_by", lang), freq_opts, horizontal=True, key="freq_w")
-    fmap = {tw("grp_day", lang): "D", tw("grp_week", lang): "W", tw("grp_month", lang): "ME"}
-    ts = df.set_index("_submission_time").resample(fmap[freq]).size().reset_index(name="n")
+    fmap = {tw("grp_day", lang): "D", tw("grp_week", lang): "W", tw("grp_month", lang): "MS"}
+    ts = df.groupby(pd.Grouper(key="_submission_time", freq=fmap[freq])).size().reset_index(name="n")
+    ts = ts[ts["n"] > 0]
     fig = px.area(ts, x="_submission_time", y="n",
                   labels={"_submission_time": "", "n": tw("responses", lang)},
                   color_discrete_sequence=[TEAL])
