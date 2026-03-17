@@ -42,7 +42,20 @@ st.sidebar.markdown("""
 <hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
 </div>""", unsafe_allow_html=True)
 
-df = date_filter(df)
+# Admin: facility filter
+from ici_shared import get_role, FACILITIES
+if get_role() == "admin" and len(fac_ids) > 1:
+    fac_opts_labels = {fid: FACILITIES[fid]["display_name"] for fid in fac_ids}
+    sel_fac = st.sidebar.selectbox(
+        {"EN":"Facility","FR":"Établissement","ES":"Establecimiento"}[lang],
+        options=["all"] + fac_ids,
+        format_func=lambda x: {"EN":"All","FR":"Tous","ES":"Todos"}[lang] if x=="all" else fac_opts_labels[x],
+        key="fac_filter_c"
+    )
+    if sel_fac != "all":
+        df = df[df["_facility_id"] == sel_fac]
+
+df = date_filter(df, key="c")
 total_n = len(df)
 if total_n == 0:
     st.warning({"EN":"No data for selected period.","FR":"Aucune donnée.","ES":"Sin datos."}[lang]); st.stop()
