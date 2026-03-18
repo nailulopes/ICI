@@ -7,11 +7,11 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ici_shared import (
-    TEAL, ORANGE, SKY, VERMILION, BLUISH, PINK,
+    FACILITIES, TEAL, ORANGE, SKY, VERMILION, BLUISH, PINK,
     LIKERT_COLORS, QUALITY_COLORS, PIE_COLORS,
-    inject_css, sidebar_logo, logout_button, lang_selector, date_filter,
+    inject_css, sidebar_logo, sidebar_facility_header, logout_button, lang_selector, date_filter,
     load_companion, prep_companion, to_int, parse_multiselect, clean_layout,
-    get_facility_ids,
+    get_facility_ids, get_role,
     LIKERT5_MAP, QUALITY_ORDER, LIKERT_QS_C,
     COMP_EMOTION_MAP, POSITIVE_EMO_C, INFO_LABELS_C,
 )
@@ -24,6 +24,7 @@ if not fac_ids:
     st.error("Not logged in."); st.stop()
 
 lang = lang_selector("lang_c")
+sidebar_facility_header({"EN": "Companion Experience", "FR": "Expérience des acompagnants", "ES": "Experiencia del Acompañante"}[lang])
 
 L = {"EN":{"loading":"Loading…","no_data":"No companion data available."},
      "FR":{"loading":"Chargement…","no_data":"Aucune donnée acompagnant."},
@@ -35,15 +36,8 @@ if raw.empty:
     st.info(L["no_data"]); st.stop()
 df = prep_companion(raw, lang)
 
-st.sidebar.markdown("""
-<div style="text-align:center;">
-<div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:#0072B2;font-weight:600;">ICI Dashboard</div>
-<div style="font-size:0.68rem;color:#888;margin-bottom:12px;">Companion Experience</div>
-<hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
-</div>""", unsafe_allow_html=True)
 
 # Admin: facility filter BEFORE date_filter
-from ici_shared import get_role, FACILITIES
 if get_role() == "admin" and len(fac_ids) > 1:
     fac_opts_labels = {fid: FACILITIES[fid]["display_name"] for fid in fac_ids}
     sel_fac = st.sidebar.selectbox(
