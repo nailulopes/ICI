@@ -96,7 +96,15 @@ def _fetch(asset_uid: str, facility_name: str) -> pd.DataFrame:
     url = f"{BASE_URL}/api/v2/assets/{asset_uid}/data/?format=json&limit=3000"
     results = []
     while url:
-        r = requests.get(url, headers=headers, timeout=30)
+        try:
+            r = requests.get(url, headers=headers, timeout=30)
+        except Exception as e:
+            st.warning(f"Connection error for {facility_name}: {e}")
+            return pd.DataFrame()
+        if r.status_code in (502, 503, 504):
+            # Transient server error — warn but don't crash
+            st.warning(f"Kobo API temporarily unavailable for {facility_name} (HTTP {r.status_code}). Try refreshing.")
+            return pd.DataFrame()
         if r.status_code != 200:
             st.error(f"Kobo API {r.status_code} for {facility_name}")
             return pd.DataFrame()
@@ -208,6 +216,16 @@ def lang_selector(key: str) -> str:
 def date_filter(df: pd.DataFrame, key: str = "df") -> pd.DataFrame:
     """Simple date range filter with unique keys per page."""
     if "_submission_time" not in df.columns or df["_submission_time"].isna().all():
+        return df
+    # Ensure datetime dtype before .dt accessor — handle timezone-aware strings too
+    if not pd.api.types.is_datetime64_any_dtype(df["_submission_time"]):
+        df = df.copy()
+        df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce", utc=True)
+    # Strip timezone info so comparisons with plain date() work
+    if hasattr(df["_submission_time"].dtype, "tz") and df["_submission_time"].dtype.tz is not None:
+        df = df.copy()
+        df["_submission_time"] = df["_submission_time"].dt.tz_localize(None)
+    if df["_submission_time"].isna().all():
         return df
     import calendar
     mn, mx = df["_submission_time"].min(), df["_submission_time"].max()
@@ -439,7 +457,9 @@ INFO_LABELS_C = {
 # ── prep functions ────────────────────────────────────────────────────────────
 def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     df = df.copy()
-    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce")
+    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce", utc=True)
+    if hasattr(df["_submission_time"].dtype, "tz") and df["_submission_time"].dtype.tz is not None:
+        df["_submission_time"] = df["_submission_time"].dt.tz_localize(None)
     for col, mp in [
         ("method",       METHOD_MAP[lang]),
         ("education",    EDUCATION_MAP[lang]),
@@ -484,7 +504,9 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
 
 def prep_companion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     df = df.copy()
-    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce")
+    df["_submission_time"] = pd.to_datetime(df["_submission_time"], errors="coerce", utc=True)
+    if hasattr(df["_submission_time"].dtype, "tz") and df["_submission_time"].dtype.tz is not None:
+        df["_submission_time"] = df["_submission_time"].dt.tz_localize(None)
     if "emotion" in df.columns:
         df["emotion"]       = to_int(df["emotion"])
         df["emotion_label"] = df["emotion"].map(COMP_EMOTION_MAP[lang])
