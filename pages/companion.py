@@ -42,7 +42,7 @@ st.sidebar.markdown("""
 <hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
 </div>""", unsafe_allow_html=True)
 
-# Admin: facility filter
+# Admin: facility filter BEFORE date_filter
 from ici_shared import get_role, FACILITIES
 if get_role() == "admin" and len(fac_ids) > 1:
     fac_opts_labels = {fid: FACILITIES[fid]["display_name"] for fid in fac_ids}
@@ -52,6 +52,11 @@ if get_role() == "admin" and len(fac_ids) > 1:
         format_func=lambda x: {"EN":"All","FR":"Tous","ES":"Todos"}[lang] if x=="all" else fac_opts_labels[x],
         key="fac_filter_c"
     )
+    if st.session_state.get("_prev_fac_c") != sel_fac:
+        st.session_state["_prev_fac_c"] = sel_fac
+        for k in ["sy_c", "sm_c", "ey_c", "em_c"]:
+            st.session_state.pop(k, None)
+        st.rerun()
     if sel_fac != "all":
         df = df[df["_facility_id"] == sel_fac]
 
@@ -105,8 +110,10 @@ if "_submission_time" in df.columns and df["_submission_time"].notna().any():
     grp = st.radio({"EN":"Group by","FR":"Regrouper par","ES":"Agrupar por"}[lang], grp_opts, horizontal=True, key="grp_c")
     ts = df.groupby(pd.Grouper(key="_submission_time", freq=freq_map[grp])).size().reset_index(name="n")
     ts = ts[ts["n"]>0]
-    fig = px.area(ts, x="_submission_time", y="n", color_discrete_sequence=[BLUISH],
-                  labels={"_submission_time":"","n":{"EN":"Responses","FR":"Réponses","ES":"Respuestas"}[lang]})
+    dtfmt = {grp_opts[0]: "%b %Y", grp_opts[1]: "%d %b %Y", grp_opts[2]: "%d %b %Y"}[grp]
+    ts["_label"] = ts["_submission_time"].dt.strftime(dtfmt)
+    fig = px.area(ts, x="_label", y="n", color_discrete_sequence=[BLUISH],
+                  labels={"_label":"","n":{"EN":"Responses","FR":"Réponses","ES":"Respuestas"}[lang]})
     fig.update_traces(line_width=2, fillcolor="rgba(0,114,178,0.12)")
     fig.update_layout(height=200, margin=dict(t=8,b=8,l=8,r=8), plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
