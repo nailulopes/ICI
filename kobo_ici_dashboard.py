@@ -57,6 +57,7 @@ if st.session_state.role is None:
                     break
             if matched:
                 st.session_state.role = matched
+                st.session_state["_nav_reset"] = True   # signal to land on women
                 st.rerun()
             else:
                 st.error("Incorrect password.")
@@ -73,5 +74,9 @@ pages = [
     st.Page("pages/compare.py",  title="Facility Comparison", icon="📊"),
 ]
 
-pg = st.navigation(pages)
+# After login, always land on Women's Experience
+if st.session_state.pop("_nav_reset", False):
+    pg = st.navigation(pages, default=pages[0])
+else:
+    pg = st.navigation(pages)
 pg.run()
