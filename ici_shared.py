@@ -9,14 +9,14 @@ from datetime import datetime
 # ── Facilities ────────────────────────────────────────────────────────────────
 FACILITIES = {
     "facility_a": {
-        "display_name": "Facility A",
-        "country":      "Country A",
+        "display_name": "Canada",
+        "country":      "Canada",
         "women_uid":    "aT3kXmLeYLtUC6zVAV5abW",
-        "companion_uid": None,  # no companion form for Facility A yet
+        "companion_uid": None,
     },
     "facility_b": {
-        "display_name": "Facility B",
-        "country":      "Country B",
+        "display_name": "Clínica de la Mujer — Cartagena, Colombia",
+        "country":      "Colombia",
         "women_uid":    "a3KYjwLBStqvGGH4B62e7p",
         "companion_uid": "aFd2ux4ggB3Kcd2Z4JTZbA",
     },
