@@ -196,6 +196,25 @@ def sidebar_logo():
         with c2:
             st.image(str(LOGO_PATH), width=110)
 
+def sidebar_facility_header(page_label: str):
+    """Show ICI Dashboard title + facility name + page label in sidebar."""
+    role = get_role()
+    if role == "admin":
+        facility_line = ""   # admin sees all facilities — no single name
+    else:
+        fids = get_facility_ids()
+        if fids:
+            name = FACILITIES[fids[0]]["display_name"]
+            facility_line = f'<div style="font-size:0.78rem;color:#005f46;font-weight:600;margin-bottom:2px;">{name}</div>'
+        else:
+            facility_line = ""
+    st.sidebar.markdown(f"""
+<div style="text-align:center;">
+<div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:#005f46;font-weight:600;">ICI Dashboard</div>
+{facility_line}<div style="font-size:0.68rem;color:#888;margin-bottom:12px;">{page_label}</div>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
+</div>""", unsafe_allow_html=True)
+
 def logout_button():
     if st.sidebar.button("🚪 Logout", use_container_width=True):
         st.session_state.role = None
@@ -512,9 +531,9 @@ def prep_companion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
         df["emotion_label"] = df["emotion"].map(COMP_EMOTION_MAP[lang])
     for col, mp in [
         ("education",  EDUCATION_MAP[lang]),
-        ("comp",       {"EN":{1:"Partner/Father",2:"Family",3:"Friend",0:"Other"},
-                        "FR":{1:"Partenaire/Père",2:"Famille",3:"Ami",0:"Autre"},
-                        "ES":{1:"Padre/Pareja",2:"Familiar",3:"Amigo",0:"Otro"}}[lang]),
+        ("comp",       {"EN":{1:"Father/parent of baby",2:"Family member (specify relationship)",3:"Friend",0:"Other"},
+                        "FR":{1:"Père/parent du bébé",2:"Membre de la famille (précisez)",3:"Ami(e)",0:"Autre"},
+                        "ES":{1:"Padre del bebé (sean los padres casados o no)",2:"Acompañante - familiar (especifique relación)",3:"Amigo",0:"Otro"}}[lang]),
         ("method",     METHOD_MAP[lang]),
         ("verbal",     VERBAL_MAP[lang]),
         ("phys",       PHYS_MAP[lang]),
