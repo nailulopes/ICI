@@ -36,29 +36,33 @@ st.sidebar.markdown("""
 </div>""", unsafe_allow_html=True)
 
 # ── Facility selection ────────────────────────────────────────────────────────
-# My own facility is always included and shown by name.
-# Other facilities are anonymous and user can pick which to include.
+lbl     = {"EN": "Compare with", "FR": "Comparer avec",   "ES": "Comparar con"}[lang]
 
-lbl = {"EN": "Compare with", "FR": "Comparer avec", "ES": "Comparar con"}[lang]
-all_lbl = {"EN": "All others", "FR": "Tous les autres", "ES": "Todos los demás"}[lang]
-none_lbl = {"EN": "None", "FR": "Aucun", "ES": "Ninguno"}[lang]
-
-if other_fids:
+if role == "admin":
+    # Admin sees all facilities and can toggle each one; no concept of "own"
+    selected_others = st.sidebar.multiselect(
+        lbl,
+        options=all_fids,
+        default=all_fids,
+        format_func=lambda x: FACILITIES[x]["display_name"],
+    )
+    fids_to_load = selected_others if selected_others else all_fids
+elif other_fids:
     selected_others = st.sidebar.multiselect(
         lbl,
         options=other_fids,
         default=other_fids,
-        format_func=lambda x: FACILITIES[x]["display_name"] if role == "admin"
-                               else f"{'ABCDEFGH'[other_fids.index(x)]}",  # anon label
+        # Non-admin sees others as anonymous letters, starting from B
+        # (A is reserved for themselves so there's no collision)
+        format_func=lambda x: f"{'BCDEFGH'[other_fids.index(x)]}",
     )
+    fids_to_load = my_fids + selected_others
 else:
     selected_others = []
     st.sidebar.info({"EN": "No other facilities available yet.",
                      "FR": "Aucun autre établissement disponible.",
                      "ES": "No hay otros establecimientos disponibles."}[lang])
-
-# All facilities to load = mine + selected others
-fids_to_load = my_fids + selected_others
+    fids_to_load = my_fids
 
 if st.sidebar.button({"EN": "↻ Refresh", "FR": "↻ Actualiser", "ES": "↻ Actualizar"}[lang]):
     st.cache_data.clear(); st.rerun()
@@ -86,13 +90,14 @@ if len(df) == 0:
 # Others: admin sees real names, others see anonymous labels A/B/C...
 def display_label(fid: str) -> str:
     real_name = FACILITIES[fid]["display_name"]
+    if role == "admin":
+        return real_name
     if fid in my_fids:
         you = {"EN": "You", "FR": "Vous", "ES": "Usted"}[lang]
         return f"{real_name} ({you})"
-    if role == "admin":
-        return real_name
+    # Others get anonymous letters starting from B (so "A (You)" vs "B", "C"...)
     anon_idx = other_fids.index(fid) if fid in other_fids else 0
-    return f"{'ABCDEFGH'[anon_idx]}"
+    return f"{'BCDEFGH'[anon_idx]}"
 
 df["_display"] = df["_facility_id"].map(display_label)
 my_display = display_label(my_fids[0]) if len(my_fids) == 1 else None
