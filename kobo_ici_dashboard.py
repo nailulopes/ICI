@@ -74,9 +74,10 @@ pages = [
     st.Page("pages/compare.py",  title="Facility Comparison", icon="📊"),
 ]
 
+pg = st.navigation(pages)
+
 # After login, always land on Women's Experience
 if st.session_state.pop("_nav_reset", False):
-    pg = st.navigation(pages, default=pages[0])
-else:
-    pg = st.navigation(pages)
+    st.switch_page(pages[0])
+
 pg.run()
