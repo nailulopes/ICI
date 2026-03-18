@@ -74,8 +74,9 @@ st.markdown(f"# {title[lang]}")
 if raw_w.empty:
     st.warning({"EN": "No data.", "FR": "Aucune donnée.", "ES": "Sin datos."}[lang]); st.stop()
 
-raw_w = date_filter(raw_w, key="cmp_w")
+# prep first (parses _submission_time to datetime), then date_filter
 df = prep_women(raw_w, lang)
+df = date_filter(df, key="cmp_w")
 
 if len(df) == 0:
     st.warning({"EN": "No data for selected period.", "FR": "Aucune donnée.", "ES": "Sin datos."}[lang]); st.stop()
@@ -238,6 +239,7 @@ if comp_fids:
         raw_c = load_companion(comp_fids)
     if not raw_c.empty:
         dfc = prep_companion(raw_c, lang)
+        dfc = date_filter(dfc, key="cmp_c")
         dfc["_display"] = dfc["_facility_id"].map(display_label)
         c_rows = []
         for fid in comp_fids:
