@@ -50,7 +50,8 @@ st.sidebar.markdown("""
 <hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
 </div>""", unsafe_allow_html=True)
 
-# Admin: facility filter
+# Admin: facility filter — must come BEFORE date_filter
+# so date range reflects the selected facility's actual date span
 from ici_shared import get_role, FACILITIES
 if get_role() == "admin" and len(fac_ids) > 1:
     fac_opts_labels = {fid: FACILITIES[fid]["display_name"] for fid in fac_ids}
@@ -60,10 +61,16 @@ if get_role() == "admin" and len(fac_ids) > 1:
         format_func=lambda x: {"EN":"All","FR":"Tous","ES":"Todos"}[lang] if x=="all" else fac_opts_labels[x],
         key="fac_filter_w"
     )
+    # Reset date filter when facility changes to avoid stale year values
+    if st.session_state.get("_prev_fac_w") != sel_fac:
+        st.session_state["_prev_fac_w"] = sel_fac
+        for k in ["sy_w", "sm_w", "ey_w", "em_w"]:
+            st.session_state.pop(k, None)
+        st.rerun()
     if sel_fac != "all":
         df = df[df["_facility_id"] == sel_fac]
 
-# Date filter
+# Date filter (after facility filter so range matches selected facility)
 df = date_filter(df, key="w")
 
 total_n = len(df)
@@ -117,8 +124,11 @@ if "_submission_time" in df.columns and df["_submission_time"].notna().any():
     grp = st.radio({"EN":"Group by","FR":"Regrouper par","ES":"Agrupar por"}[lang], grp_opts, horizontal=True)
     ts = df.groupby(pd.Grouper(key="_submission_time", freq=freq_map[grp])).size().reset_index(name="n")
     ts = ts[ts["n"]>0]
-    fig = px.area(ts, x="_submission_time", y="n", color_discrete_sequence=[TEAL],
-                  labels={"_submission_time":"","n":{"EN":"Responses","FR":"Réponses","ES":"Respuestas"}[lang]})
+    # Format x-axis label based on grouping to avoid showing time component
+    dtfmt = {grp_opts[0]: "%b %Y", grp_opts[1]: "%d %b %Y", grp_opts[2]: "%d %b %Y"}[grp]
+    ts["_label"] = ts["_submission_time"].dt.strftime(dtfmt)
+    fig = px.area(ts, x="_label", y="n", color_discrete_sequence=[TEAL],
+                  labels={"_label":"","n":{"EN":"Responses","FR":"Réponses","ES":"Respuestas"}[lang]})
     fig.update_traces(line_width=2, fillcolor="rgba(0,158,115,0.12)")
     fig.update_layout(height=200, margin=dict(t=8,b=8,l=8,r=8), plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
