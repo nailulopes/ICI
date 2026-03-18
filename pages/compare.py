@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ici_shared import (
     FACILITIES, TEAL, ORANGE, SKY, VERMILION, BLUISH, PINK, YELLOW,
     FACILITY_COLORS, PIE_COLORS,
-    inject_css, sidebar_logo, logout_button, lang_selector,
+    inject_css, sidebar_logo, sidebar_facility_header, logout_button, lang_selector,
     load_women, load_companion, prep_women, prep_companion,
     get_facility_ids, get_role, clean_layout, METHOD_MAP,
     date_filter,
@@ -28,12 +28,7 @@ if not my_fids:
 
 lang = lang_selector("lang_cmp")
 
-st.sidebar.markdown("""
-<div style="text-align:center;">
-<div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:#005f46;font-weight:600;">ICI Dashboard</div>
-<div style="font-size:0.68rem;color:#888;margin-bottom:12px;">Facility Comparison</div>
-<hr style="border:none;border-top:1px solid #e0e0e0;margin:0 0 12px 0;">
-</div>""", unsafe_allow_html=True)
+sidebar_facility_header({"EN": "Facility Comparison", "FR": "Comparaison des établissements", "ES": "Comparación de establecimientos"}[lang])
 
 # ── Facility selection ────────────────────────────────────────────────────────
 lbl     = {"EN": "Compare with", "FR": "Comparer avec",   "ES": "Comparar con"}[lang]
