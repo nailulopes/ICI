@@ -533,7 +533,7 @@ for fid in fids_to_load:
     if n==0 or "info" not in fac_df.columns: continue
     counts = parse_multiselect(fac_df["info"], list(INFO_LABELS_W[lang].keys()))
     for k, lbl in INFO_LABELS_W[lang].items():
-        info_rows.append({"Facility":display_label(fid),"Topic":lbl,
+        info_rows.append({"Facility":display_label(fid),"Label":lbl,
                           "Pct":round(counts[k]/n*100,1)})
 if info_rows:
     st.plotly_chart(fac_bar(info_rows,
