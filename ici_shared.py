@@ -11,12 +11,14 @@ FACILITIES = {
     "facility_a": {
         "display_name": "Canada",
         "country":      "Canada",
+        "continent":    "North America",
         "women_uid":    "aT3kXmLeYLtUC6zVAV5abW",
         "companion_uid": None,
     },
     "facility_b": {
         "display_name": "Clínica de la Mujer — Cartagena, Colombia",
         "country":      "Colombia",
+        "continent":    "South America",
         "women_uid":    "a3KYjwLBStqvGGH4B62e7p",
         "companion_uid": "aFd2ux4ggB3Kcd2Z4JTZbA",
     },
@@ -136,6 +138,7 @@ def load_women(fac_ids: list) -> pd.DataFrame:
             df["_facility_id"]   = fid
             df["_facility_name"] = info["display_name"]
             df["_country"]       = info["country"]
+            df["_continent"]     = info.get("continent", "")
             frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
@@ -152,6 +155,7 @@ def load_companion(fac_ids: list) -> pd.DataFrame:
             df["_facility_id"]   = fid
             df["_facility_name"] = info["display_name"]
             df["_country"]       = info["country"]
+            df["_continent"]     = info.get("continent", "")
             frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
