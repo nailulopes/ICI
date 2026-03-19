@@ -254,53 +254,169 @@ def fac_bar(rows_data, title, height=320, pct_range=105):
 st.markdown(f'<div class="section-title">{"Demographics" if lang=="EN" else "Données démographiques" if lang=="FR" else "Datos demográficos"}</div>',
             unsafe_allow_html=True)
 
+# ── Descriptive stats table ───────────────────────────────────────────────────
 demo_rows = []
 for fid in fids_to_load:
     fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
     if n==0: continue
     lbl = display_label(fid)
-    age_mean = fac_df["age"].mean() if "age" in fac_df.columns and fac_df["age"].notna().any() else None
-    gest_mean = fac_df["weeks_clean"].mean() if "weeks_clean" in fac_df.columns and fac_df["weeks_clean"].notna().any() else None
-    primiparous = (fac_df["no_deliveries"]==1).sum()/n*100 if "no_deliveries" in fac_df.columns else np.nan
-    highrisk = (fac_df["risk"]==1).sum()/n*100 if "risk" in fac_df.columns else np.nan
+
+    def stats_str(series):
+        s = series.dropna()
+        if len(s) == 0: return "–"
+        return f"{s.mean():.1f}  (med {s.median():.0f}, {int(s.min())}–{int(s.max())})"
+
+    age_s   = fac_df["age"] if "age" in fac_df.columns else pd.Series(dtype=float)
+    gest_s  = fac_df["weeks_clean"] if "weeks_clean" in fac_df.columns else pd.Series(dtype=float)
+    prim    = (fac_df["no_deliveries"]==1).sum()/n*100 if "no_deliveries" in fac_df.columns else np.nan
+    risk    = (fac_df["risk"]==1).sum()/n*100 if "risk" in fac_df.columns else np.nan
+    preterm = (fac_df["weeks_clean"] < 37).sum()/gest_s.notna().sum()*100 if gest_s.notna().sum() > 0 else np.nan
+
     demo_rows.append({
         {"EN":"Facility","FR":"Établissement","ES":"Establecimiento"}[lang]: lbl,
         "n": n,
-        {"EN":"Mean age (yrs)","FR":"Âge moyen","ES":"Edad media"}[lang]:
-            f"{age_mean:.1f}" if age_mean else "–",
-        {"EN":"Mean gest. weeks","FR":"Sem. gest. moy.","ES":"Sem. gest. media"}[lang]:
-            f"{gest_mean:.1f}" if gest_mean else "–",
-        {"EN":"% Primiparous","FR":"% Primipares","ES":"% Primíparas"}[lang]:
-            f"{primiparous:.1f}%" if not np.isnan(primiparous) else "–",
-        {"EN":"% High-risk","FR":"% Haut risque","ES":"% Alto riesgo"}[lang]:
-            f"{highrisk:.1f}%" if not np.isnan(highrisk) else "–",
+        {"EN":"Age — mean (med, range)","FR":"Âge — moy (méd, étendue)","ES":"Edad — media (med, rango)"}[lang]: stats_str(age_s),
+        {"EN":"Gest. weeks — mean (med, range)","FR":"Sem. gest. — moy (méd, étendue)","ES":"Sem. gest. — media (med, rango)"}[lang]: stats_str(gest_s),
+        {"EN":"% Primiparous","FR":"% Primipares","ES":"% Primíparas"}[lang]: f"{prim:.1f}%" if not np.isnan(prim) else "–",
+        {"EN":"% Preterm (<37 wks)","FR":"% Prématuré (<37 sem)","ES":"% Pretérmino (<37 sem)"}[lang]: f"{preterm:.1f}%" if not np.isnan(preterm) else "–",
+        {"EN":"% High-risk","FR":"% Haut risque","ES":"% Alto riesgo"}[lang]: f"{risk:.1f}%" if not np.isnan(risk) else "–",
     })
 if demo_rows:
     st.dataframe(pd.DataFrame(demo_rows), use_container_width=True, hide_index=True)
 
-# Age distribution by facility
+# ── Maternal age distribution ─────────────────────────────────────────────────
 if "age" in df.columns and df["age"].notna().any():
+    st.markdown(f'<span style="font-size:0.85rem;color:#555;font-family:DM Serif Display,serif">{"Maternal age distribution" if lang=="EN" else "Distribution de l\'âge maternel" if lang=="FR" else "Distribución de edad materna"}</span>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+
+    # Grouped bar by age band
+    age_order = ["<20","20–24","25–29","30–34","35–39","40+"]
     age_rows = []
     for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]
-        if len(fac_df)==0: continue
-        for grp in ["<20","20–24","25–29","30–34","35–39","40+"]:
-            n_fac = len(fac_df)
-            n_grp = (fac_df["age_group"].astype(str)==grp).sum() if "age_group" in fac_df.columns else 0
-            age_rows.append({"Facility":display_label(fid),"Group":grp,"Pct":round(n_grp/n_fac*100,1)})
+        fac_df = df[df["_facility_id"]==fid]; n_fac=len(fac_df)
+        if n_fac==0 or "age_group" not in fac_df.columns: continue
+        for grp in age_order:
+            cnt = (fac_df["age_group"].astype(str)==grp).sum()
+            age_rows.append({"Facility":display_label(fid),"Group":grp,
+                             "n":cnt,"Pct":round(cnt/n_fac*100,1)})
     if age_rows:
         adf = pd.DataFrame(age_rows)
         fig = px.bar(adf, x="Group", y="Pct", color="Facility", barmode="group",
                      color_discrete_map=color_map,
-                     labels={"Pct":"%","Group":{"EN":"Age group","FR":"Groupe d'âge","ES":"Grupo de edad"}[lang],"Facility":""},
+                     category_orders={"Group":age_order},
+                     labels={"Pct":"%","Group":"","Facility":""},
                      text="Pct")
         fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside", textfont=dict(size=9))
-        fig.update_layout(height=340, margin=dict(t=8,b=80,l=8,r=8),
+        fig.update_layout(height=320, margin=dict(t=8,b=70,l=8,r=8),
                           plot_bgcolor="white", paper_bgcolor="white",
                           legend=dict(orientation="h",y=-0.22,x=0.5,xanchor="center"),
-                          yaxis=dict(gridcolor="#eeeeee",range=[0,105]),
-                          xaxis=dict(showgrid=False))
-        st.plotly_chart(fig, use_container_width=True)
+                          yaxis=dict(gridcolor="#eeeeee",range=[0,65]),
+                          xaxis=dict(showgrid=False),
+                          title=dict(text={"EN":"% by age group","FR":"% par groupe d'âge","ES":"% por grupo de edad"}[lang],
+                                     font=dict(size=12,family="DM Serif Display, serif"),x=0,xanchor="left"))
+        c1.plotly_chart(fig, use_container_width=True)
+
+    # Box plot of raw age per facility
+    age_box_rows = []
+    for fid in fids_to_load:
+        fac_df = df[df["_facility_id"]==fid]
+        if fac_df.empty or "age" not in fac_df.columns: continue
+        for v in fac_df["age"].dropna():
+            age_box_rows.append({"Facility":display_label(fid),"Age":float(v)})
+    if age_box_rows:
+        bdf = pd.DataFrame(age_box_rows)
+        fig2 = go.Figure()
+        for fid in fids_to_load:
+            lbl = display_label(fid)
+            vals = bdf[bdf["Facility"]==lbl]["Age"]
+            if vals.empty: continue
+            fig2.add_trace(go.Box(y=vals, name=lbl, marker_color=color_map.get(lbl, TEAL),
+                                  boxmean="sd", jitter=0.3, pointpos=0,
+                                  marker=dict(size=3, opacity=0.5)))
+        fig2.update_layout(height=320, margin=dict(t=8,b=70,l=8,r=8),
+                           plot_bgcolor="white", paper_bgcolor="white",
+                           showlegend=False,
+                           yaxis=dict(gridcolor="#eeeeee", title={"EN":"Age (yrs)","FR":"Âge","ES":"Edad"}[lang]),
+                           xaxis=dict(showgrid=False),
+                           title=dict(text={"EN":"Age distribution (box + points)","FR":"Distribution de l'âge","ES":"Distribución de edad"}[lang],
+                                      font=dict(size=12,family="DM Serif Display, serif"),x=0,xanchor="left"))
+        c2.plotly_chart(fig2, use_container_width=True)
+
+# ── Gestational age distribution ──────────────────────────────────────────────
+if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
+    st.markdown(f'<span style="font-size:0.85rem;color:#555;font-family:DM Serif Display,serif">{"Gestational age distribution" if lang=="EN" else "Distribution de l\'âge gestationnel" if lang=="FR" else "Distribución de edad gestacional"}</span>', unsafe_allow_html=True)
+    c3, c4 = st.columns(2)
+
+    # Grouped bar by gestational band — clinically meaningful cutoffs
+    gest_order = ["<34","34–36","37–38","39–40","41+"]
+    gest_labels = {
+        "EN": {"<34":"<34 wks\n(very preterm)","34–36":"34–36\n(late preterm)","37–38":"37–38\n(early term)","39–40":"39–40\n(full term)","41+":"41+\n(post-term)"},
+        "FR": {"<34":"<34 sem\n(très prémat.)","34–36":"34–36\n(prémat. tardif)","37–38":"37–38\n(début terme)","39–40":"39–40\n(terme complet)","41+":"41+\n(post-terme)"},
+        "ES": {"<34":"<34 sem\n(muy pretérmino)","34–36":"34–36\n(pretérmino tardío)","37–38":"37–38\n(término temprano)","39–40":"39–40\n(término completo)","41+":"41+\n(postérmino)"},
+    }[lang]
+
+    gest_rows = []
+    for fid in fids_to_load:
+        fac_df = df[df["_facility_id"]==fid]; n_fac=len(fac_df)
+        if n_fac==0 or "weeks_clean" not in fac_df.columns: continue
+        w = fac_df["weeks_clean"].dropna(); n_w=len(w)
+        if n_w==0: continue
+        bands = {
+            "<34":   (w < 34).sum(),
+            "34–36": ((w >= 34) & (w < 37)).sum(),
+            "37–38": ((w >= 37) & (w < 39)).sum(),
+            "39–40": ((w >= 39) & (w <= 40)).sum(),
+            "41+":   (w > 40).sum(),
+        }
+        for grp, cnt in bands.items():
+            gest_rows.append({"Facility":display_label(fid),
+                              "Group":gest_labels[grp],
+                              "SortKey":gest_order.index(grp),
+                              "n":cnt,"Pct":round(cnt/n_w*100,1)})
+    if gest_rows:
+        gdf = pd.DataFrame(gest_rows).sort_values("SortKey")
+        sort_order = [gest_labels[g] for g in gest_order]
+        fig3 = px.bar(gdf, x="Group", y="Pct", color="Facility", barmode="group",
+                      color_discrete_map=color_map,
+                      category_orders={"Group":sort_order},
+                      labels={"Pct":"%","Group":"","Facility":""},
+                      text="Pct")
+        fig3.update_traces(texttemplate="%{text:.1f}%", textposition="outside", textfont=dict(size=9))
+        fig3.update_layout(height=340, margin=dict(t=8,b=80,l=8,r=8),
+                           plot_bgcolor="white", paper_bgcolor="white",
+                           legend=dict(orientation="h",y=-0.24,x=0.5,xanchor="center"),
+                           yaxis=dict(gridcolor="#eeeeee",range=[0,80]),
+                           xaxis=dict(showgrid=False, tickfont=dict(size=10)),
+                           title=dict(text={"EN":"% by gestational age band","FR":"% par âge gestationnel","ES":"% por edad gestacional"}[lang],
+                                      font=dict(size=12,family="DM Serif Display, serif"),x=0,xanchor="left"))
+        c3.plotly_chart(fig3, use_container_width=True)
+
+    # Box plot of raw gestational weeks
+    gest_box_rows = []
+    for fid in fids_to_load:
+        fac_df = df[df["_facility_id"]==fid]
+        if fac_df.empty or "weeks_clean" not in fac_df.columns: continue
+        for v in fac_df["weeks_clean"].dropna():
+            gest_box_rows.append({"Facility":display_label(fid),"Weeks":float(v)})
+    if gest_box_rows:
+        gbdf = pd.DataFrame(gest_box_rows)
+        fig4 = go.Figure()
+        for fid in fids_to_load:
+            lbl = display_label(fid)
+            vals = gbdf[gbdf["Facility"]==lbl]["Weeks"]
+            if vals.empty: continue
+            fig4.add_trace(go.Box(y=vals, name=lbl, marker_color=color_map.get(lbl, TEAL),
+                                  boxmean="sd", jitter=0.3, pointpos=0,
+                                  marker=dict(size=3, opacity=0.5)))
+        fig4.update_layout(height=340, margin=dict(t=8,b=70,l=8,r=8),
+                           plot_bgcolor="white", paper_bgcolor="white",
+                           showlegend=False,
+                           yaxis=dict(gridcolor="#eeeeee",
+                                      title={"EN":"Gestational weeks","FR":"Semaines gest.","ES":"Semanas gest."}[lang]),
+                           xaxis=dict(showgrid=False),
+                           title=dict(text={"EN":"Gestational age distribution (box + points)","FR":"Distribution âge gestationnel","ES":"Distribución edad gestacional"}[lang],
+                                      font=dict(size=12,family="DM Serif Display, serif"),x=0,xanchor="left"))
+        c4.plotly_chart(fig4, use_container_width=True)
 
 # ── Staff opinion — Likert scales ─────────────────────────────────────────────
 st.markdown(f'<div class="section-title">{"Quality of Care — Staff Opinion" if lang=="EN" else "Qualité des soins — Likert" if lang=="FR" else "Calidad de Atención — Opinion del personal"}</div>',
