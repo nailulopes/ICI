@@ -99,30 +99,45 @@ def display_label(fid: str) -> str:
 df["_display"] = df["_facility_id"].map(display_label)
 my_display = display_label(my_fids[0]) if len(my_fids) == 1 else None
 
-# Color assignment:
-# - Non-admin: own facility = TEAL, others cycle BLUISH/ORANGE/...
-# - Admin: no concept of "own", cycle through full palette
-_palette = [TEAL, BLUISH, ORANGE, PINK, VERMILION, SKY, YELLOW]
+# ── Compare by: Facility or Country ──────────────────────────────────────────
+_by_opts = {"EN":["Facility","Country"],"FR":["Établissement","Pays"],"ES":["Establecimiento","País"]}[lang]
+compare_by = st.sidebar.radio(
+    {"EN":"Compare by","FR":"Comparer par","ES":"Comparar por"}[lang],
+    _by_opts, horizontal=True, key="compare_by"
+)
+by_country = (compare_by == _by_opts[1])
 
-def fac_color(fid: str) -> str:
-    if role == "admin":
-        idx = fids_to_load.index(fid) if fid in fids_to_load else 0
+if by_country:
+    # Build a synthetic group list from distinct countries in the loaded data
+    countries = sorted(df["_country"].dropna().unique().tolist())
+    group_ids    = countries                            # group identifier
+    group_label  = lambda g: g                         # label = country name itself
+    group_filter = lambda gid: df[df["_country"] == gid]
+    # Color: own country = TEAL for facility logins; cycle for admin
+    my_countries = list(df[df["_facility_id"].isin(my_fids)]["_country"].dropna().unique()) if my_fids else []
+    def group_color(gid):
+        if role != "admin" and gid in my_countries:
+            return TEAL
+        idx = [g for g in countries if role == "admin" or g not in my_countries].index(gid) \
+              if gid in [g for g in countries if role == "admin" or g not in my_countries] else 0
         return _palette[idx % len(_palette)]
-    if fid in my_fids:
-        return TEAL
-    others_in_plot = [f for f in fids_to_load if f not in my_fids]
-    idx = others_in_plot.index(fid) if fid in others_in_plot else 0
-    return [BLUISH, ORANGE, PINK, VERMILION, SKY, YELLOW][idx % 6]
+    color_map = {g: group_color(g) for g in group_ids}
+else:
+    group_ids    = fids_to_load
+    group_label  = display_label
+    group_filter = lambda gid: df[df["_facility_id"] == gid]
+    color_map    = {display_label(fid): fac_color(fid) for fid in fids_to_load}
 
-color_map = {display_label(fid): fac_color(fid) for fid in fids_to_load}
+# Convenience: fac_label(gid) → display string used in charts
+fac_label = group_label
 
 # ── Summary table ─────────────────────────────────────────────────────────────
 st.markdown(f'<div class="section-title">{"Summary" if lang=="EN" else "Résumé" if lang=="FR" else "Resumen"}</div>',
             unsafe_allow_html=True)
 
 rows = []
-for fid in fids_to_load:
-    fac_df = df[df["_facility_id"] == fid]
+for gid in group_ids:
+    fac_df = group_filter(gid)
     n = len(fac_df)
     if n == 0: continue
     sat   = (fac_df["satisfaction"].isin([4,5])).sum()/n*100 if "satisfaction" in fac_df.columns else np.nan
@@ -133,7 +148,7 @@ for fid in fids_to_load:
     verb  = (fac_df["verbal"].isin([3,4,5])).sum()/n*100 if "verbal" in fac_df.columns else np.nan
     exam  = (fac_df["exam"].isin([2,3,4,5])).sum()/n*100 if "exam" in fac_df.columns else np.nan
     rows.append({
-        {"EN":"Facility","FR":"Établissement","ES":"Establecimiento"}[lang]: display_label(fid),
+        {"EN":"Facility","FR":"Établissement","ES":"Establecimiento"}[lang]: fac_label(gid),
         "n": n,
         "% Good/Very good": f"{sat:.1f}%" if not np.isnan(sat) else "–",
         "% Vaginal":        f"{vag:.1f}%" if not np.isnan(vag) else "–",
@@ -152,11 +167,11 @@ st.markdown(f'<div class="section-title">{"Birth Method" if lang=="EN" else "Mod
             unsafe_allow_html=True)
 if "method" in df.columns:
     m_rows = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n=len(fac_df)
         if n==0: continue
         for mc in [1,2,3,4,5]:
-            m_rows.append({"Facility": display_label(fid),
+            m_rows.append({"Facility": fac_label(gid),
                            "Method": METHOD_MAP[lang].get(mc, str(mc)),
                            "Pct": (fac_df["method"]==mc).sum()/n*100})
     if m_rows:
@@ -174,11 +189,11 @@ st.markdown(f'<div class="section-title">{"Satisfaction" if lang=="EN" else "Sat
             unsafe_allow_html=True)
 if "satisfaction" in df.columns:
     s_rows = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n=len(fac_df)
         if n==0: continue
         s_rows.append({
-            "Facility": display_label(fid),
+            "Facility": fac_label(gid),
             "% Good/Very good": (fac_df["satisfaction"].isin([4,5])).sum()/n*100,
             "% Poor/Very bad":  (fac_df["satisfaction"].isin([1,2])).sum()/n*100,
         })
@@ -215,15 +230,15 @@ indicators = {
            "% Tratada con respeto (Siempre)": ("respect",[5])},
 }[lang]
 
-for fid in fids_to_load:
-    fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+for gid in group_ids:
+    fac_df = group_filter(gid); n=len(fac_df)
     if n==0: continue
     for ind_label, (col, vals) in indicators.items():
         if col in fac_df.columns:
             pct = fac_df[col].isin(vals).sum()/n*100
         else:
             pct = 0
-        indicator_rows.append({"Facility": display_label(fid), "Indicator": ind_label, "Pct": round(pct,1)})
+        indicator_rows.append({"Facility": fac_label(gid), "Indicator": ind_label, "Pct": round(pct,1)})
 
 if indicator_rows:
     idf = pd.DataFrame(indicator_rows)
@@ -263,10 +278,10 @@ st.markdown(f'<div class="section-title">{"Demographics" if lang=="EN" else "Don
 
 # ── Descriptive stats table ───────────────────────────────────────────────────
 demo_rows = []
-for fid in fids_to_load:
-    fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+for gid in group_ids:
+    fac_df = group_filter(gid); n=len(fac_df)
     if n==0: continue
-    lbl = display_label(fid)
+    lbl = fac_label(gid)
 
     def stats_str(series):
         s = series.dropna()
@@ -298,12 +313,12 @@ if "age" in df.columns and df["age"].notna().any():
     # Grouped bar by age band
     age_order = ["<20","20–24","25–29","30–34","35–39","40+"]
     age_rows = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n_fac=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n_fac=len(fac_df)
         if n_fac==0 or "age_group" not in fac_df.columns: continue
         for grp in age_order:
             cnt = (fac_df["age_group"].astype(str)==grp).sum()
-            age_rows.append({"Facility":display_label(fid),"Group":grp,
+            age_rows.append({"Facility":fac_label(gid),"Group":grp,
                              "n":cnt,"Pct":round(cnt/n_fac*100,1)})
     if age_rows:
         adf = pd.DataFrame(age_rows)
@@ -324,16 +339,16 @@ if "age" in df.columns and df["age"].notna().any():
 
     # Box plot of raw age per facility
     age_box_rows = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]
+    for gid in group_ids:
+        fac_df = group_filter(gid)
         if fac_df.empty or "age" not in fac_df.columns: continue
         for v in fac_df["age"].dropna():
-            age_box_rows.append({"Facility":display_label(fid),"Age":float(v)})
+            age_box_rows.append({"Facility":fac_label(gid),"Age":float(v)})
     if age_box_rows:
         bdf = pd.DataFrame(age_box_rows)
         fig2 = go.Figure()
-        for fid in fids_to_load:
-            lbl = display_label(fid)
+        for gid in group_ids:
+            lbl = fac_label(gid)
             vals = bdf[bdf["Facility"]==lbl]["Age"]
             if vals.empty: continue
             fig2.add_trace(go.Box(y=vals, name=lbl, marker_color=color_map.get(lbl, TEAL),
@@ -361,8 +376,8 @@ if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
     }[lang]
 
     gest_rows = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n_fac=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n_fac=len(fac_df)
         if n_fac==0 or "weeks_clean" not in fac_df.columns: continue
         w = fac_df["weeks_clean"].dropna(); n_w=len(w)
         if n_w==0: continue
@@ -374,7 +389,7 @@ if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
             "41+":   (w > 40).sum(),
         }
         for grp, cnt in bands.items():
-            gest_rows.append({"Facility":display_label(fid),
+            gest_rows.append({"Facility":fac_label(gid),
                               "Group":gest_labels[grp],
                               "SortKey":gest_order.index(grp),
                               "n":cnt,"Pct":round(cnt/n_w*100,1)})
@@ -398,16 +413,16 @@ if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
 
     # Box plot of raw gestational weeks
     gest_box_rows = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]
+    for gid in group_ids:
+        fac_df = group_filter(gid)
         if fac_df.empty or "weeks_clean" not in fac_df.columns: continue
         for v in fac_df["weeks_clean"].dropna():
-            gest_box_rows.append({"Facility":display_label(fid),"Weeks":float(v)})
+            gest_box_rows.append({"Facility":fac_label(gid),"Weeks":float(v)})
     if gest_box_rows:
         gbdf = pd.DataFrame(gest_box_rows)
         fig4 = go.Figure()
-        for fid in fids_to_load:
-            lbl = display_label(fid)
+        for gid in group_ids:
+            lbl = fac_label(gid)
             vals = gbdf[gbdf["Facility"]==lbl]["Weeks"]
             if vals.empty: continue
             fig4.add_trace(go.Box(y=vals, name=lbl, marker_color=color_map.get(lbl, TEAL),
@@ -433,11 +448,11 @@ likert_order = list(LIKERT5_MAP[lang].values())   # Always → Never + N/A
 for q_key, q_label in likert_qs.items():
     col_lbl = q_key + "_label"
     rows_q = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n=len(fac_df)
         if n==0 or col_lbl not in fac_df.columns: continue
         for cat in likert_order:
-            rows_q.append({"Facility":display_label(fid),"Response":cat,
+            rows_q.append({"Facility":fac_label(gid),"Response":cat,
                            "Pct": round((fac_df[col_lbl]==cat).sum()/n*100,1)})
     if rows_q:
         qdf = pd.DataFrame(rows_q)
@@ -471,11 +486,11 @@ for col, col_map, title, container in [
      {"EN":"Non-pharma comfort","FR":"Confort non-pharma","ES":"Confort no-farma"}[lang], c2),
 ]:
     rows_p = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n=len(fac_df)
         if n==0 or col not in fac_df.columns: continue
         for lbl in col_map.values():
-            rows_p.append({"Facility":display_label(fid),"Label":lbl,
+            rows_p.append({"Facility":fac_label(gid),"Label":lbl,
                            "Pct":round((fac_df[col]==lbl).sum()/n*100,1)})
     if rows_p:
         container.plotly_chart(fac_bar(rows_p, title, height=340), use_container_width=True)
@@ -488,11 +503,11 @@ for col, col_map, title, container in [
      {"EN":"Episiotomy","FR":"Épisiotomie","ES":"Episiotomía"}[lang], c4),
 ]:
     rows_p = []
-    for fid in fids_to_load:
-        fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+    for gid in group_ids:
+        fac_df = group_filter(gid); n=len(fac_df)
         if n==0 or col not in fac_df.columns: continue
         for lbl in col_map.values():
-            rows_p.append({"Facility":display_label(fid),"Label":lbl,
+            rows_p.append({"Facility":fac_label(gid),"Label":lbl,
                            "Pct":round((fac_df[col]==lbl).sum()/n*100,1)})
     if rows_p:
         container.plotly_chart(fac_bar(rows_p, title, height=340), use_container_width=True)
@@ -507,12 +522,12 @@ pos_lbl    = {"EN":"Positive","FR":"Positif","ES":"Positivo"}[lang]
 neg_lbl    = {"EN":"Negative","FR":"Négatif","ES":"Negativo"}[lang]
 
 emo_rows = []
-for fid in fids_to_load:
-    fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+for gid in group_ids:
+    fac_df = group_filter(gid); n=len(fac_df)
     if n==0 or "emotion" not in fac_df.columns: continue
     counts = parse_multiselect(fac_df["emotion"], list(emo_labels.keys()))
     for k, lbl in emo_labels.items():
-        emo_rows.append({"Facility":display_label(fid),"Emotion":lbl,
+        emo_rows.append({"Facility":fac_label(gid),"Emotion":lbl,
                          "Pct":round(counts[k]/n*100,1),
                          "Type": pos_lbl if lbl in pos_set else neg_lbl})
 if emo_rows:
@@ -535,12 +550,12 @@ st.markdown(f'<div class="section-title">{"Info Before Discharge" if lang=="EN" 
             unsafe_allow_html=True)
 
 info_rows = []
-for fid in fids_to_load:
-    fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+for gid in group_ids:
+    fac_df = group_filter(gid); n=len(fac_df)
     if n==0 or "info" not in fac_df.columns: continue
     counts = parse_multiselect(fac_df["info"], list(INFO_LABELS_W[lang].keys()))
     for k, lbl in INFO_LABELS_W[lang].items():
-        info_rows.append({"Facility":display_label(fid),"Label":lbl,
+        info_rows.append({"Facility":fac_label(gid),"Label":lbl,
                           "Pct":round(counts[k]/n*100,1)})
 if info_rows:
     st.plotly_chart(fac_bar(info_rows,
@@ -558,12 +573,12 @@ mistreat_items = [
     ("exam",    {"EN":"Vaginal exam w/o consent","FR":"Examen sans consentement","ES":"Examen sin consentimiento"}[lang],[2,3,4,5]),
     ("treat",   {"EN":"Unwanted treatment","FR":"Traitement non voulu","ES":"Tratamiento no deseado"}[lang],       [1]),
 ]
-for fid in fids_to_load:
-    fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
+for gid in group_ids:
+    fac_df = group_filter(gid); n=len(fac_df)
     if n==0: continue
     for col, lbl, vals in mistreat_items:
         if col in fac_df.columns:
-            mistreat_rows.append({"Facility":display_label(fid),"Label":lbl,
+            mistreat_rows.append({"Facility":fac_label(gid),"Label":lbl,
                                   "Pct":round(fac_df[col].isin(vals).sum()/n*100,1)})
 if mistreat_rows:
     st.plotly_chart(fac_bar(mistreat_rows,
@@ -580,7 +595,6 @@ if comp_fids:
     if not raw_c.empty:
         dfc = prep_companion(raw_c, lang)
         dfc = date_filter(dfc, key="cmp_c")
-        dfc["_display"] = dfc["_facility_id"].map(display_label)
         c_rows = []
         for fid in comp_fids:
             fac_df = dfc[dfc["_facility_id"]==fid]; n=len(fac_df)
