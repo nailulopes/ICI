@@ -99,6 +99,19 @@ def display_label(fid: str) -> str:
 df["_display"] = df["_facility_id"].map(display_label)
 my_display = display_label(my_fids[0]) if len(my_fids) == 1 else None
 
+# Color palette — defined here so both facility and country branches can use it
+_palette = [TEAL, BLUISH, ORANGE, PINK, VERMILION, SKY, YELLOW]
+
+def fac_color(fid: str) -> str:
+    if role == "admin":
+        idx = fids_to_load.index(fid) if fid in fids_to_load else 0
+        return _palette[idx % len(_palette)]
+    if fid in my_fids:
+        return TEAL
+    others_in_plot = [f for f in fids_to_load if f not in my_fids]
+    idx = others_in_plot.index(fid) if fid in others_in_plot else 0
+    return _palette[(idx + 1) % len(_palette)]  # skip TEAL (index 0) for others
+
 # ── Compare by: Facility or Country ──────────────────────────────────────────
 _by_opts = {"EN":["Facility","Country"],"FR":["Établissement","Pays"],"ES":["Establecimiento","País"]}[lang]
 compare_by = st.sidebar.radio(
