@@ -281,20 +281,33 @@ if "id" in df.columns and df["id"].notna().any():
 
     if not raw_w.empty:
         import plotly.graph_objects as go
-        dw = prep_women(raw_w, lang)
+        from ici_shared import to_int as _to_int
+
+        # Apply same facility filter as companion if admin selected one
+        raw_w2 = raw_w.copy()
         if get_role() == "admin":
             sel = st.session_state.get("fac_filter_c", "all")
             if sel != "all":
-                dw = dw[dw["_facility_id"] == sel]
+                raw_w2 = raw_w2[raw_w2["_facility_id"] == sel]
 
-        df["id"]  = df["id"].astype(str).str.strip()
-        dw["id"] = dw["id"].astype(str).str.strip()
+        # Work on raw numeric values — convert id to string, coerce numeric fields
+        pair_fields = ["satisfaction","expect","coop","decisions","respect","privacy",
+                       "spoke","introduction","comfort","pharma",
+                       "info/1","info/2","info/3","info/4"]
 
-        # Select only the columns we need from each form before merging
-        comp_cols = ["id"] + [c for c in ["satisfaction","expect","coop","decisions","respect","privacy","spoke","introduction","comfort","pharma","info/1","info/2","info/3","info/4"] if c in df.columns]
-        women_cols = ["id"] + [c for c in ["satisfaction","expect","coop","decisions","respect","privacy","spoke","introduction","comfort","pharma","info/1","info/2","info/3","info/4"] if c in dw.columns]
+        def extract_raw(frame, label):
+            out = frame.copy()
+            out["id"] = out["id"].astype(str).str.strip()
+            for f in pair_fields:
+                if f in out.columns:
+                    out[f] = _to_int(out[f])
+            keep = ["id"] + [f for f in pair_fields if f in out.columns]
+            return out[keep]
 
-        paired = df[comp_cols].merge(dw[women_cols], on="id", suffixes=("_c","_w"))
+        rc = extract_raw(raw, "c")   # raw companion (already filtered by fac/date above)
+        rw = extract_raw(raw_w2, "w")
+
+        paired = rc.merge(rw, on="id", suffixes=("_c","_w"))
         n_paired = len(paired)
 
         if n_paired == 0:
@@ -306,135 +319,117 @@ if "id" in df.columns and df["id"].notna().any():
                         "FR":f"{n_paired} paires identifiées (acompagnant + mère, même ID).",
                         "ES":f"{n_paired} pares identificados (acompañante + madre, mismo ID)."}[lang])
 
-            lbl_c  = {"EN":"Companion","FR":"Acompagnant","ES":"Acompañante"}[lang]
-            lbl_w  = {"EN":"Mother","FR":"Mère","ES":"Madre"}[lang]
+            lbl_c = {"EN":"Companion","FR":"Acompagnant","ES":"Acompañante"}[lang]
+            lbl_w = {"EN":"Mother","FR":"Mère","ES":"Madre"}[lang]
 
-            def pct_isin(series, vals):
-                return round(series.isin(vals).sum() / len(series) * 100, 1) if len(series) else 0
+            def pct(series, vals):
+                s = series.dropna()
+                return round(s.isin(vals).sum() / len(s) * 100, 1) if len(s) else 0
 
-            def pct_eq(series, val):
-                return round((series == val).sum() / len(series) * 100, 1) if len(series) else 0
-
-            # ── Chart helper: grouped bar comparing companion vs mother ──────
-            def paired_bar(indicators, title, height=300):
-                """indicators: list of (label, pct_c, pct_w)"""
-                labels = [i[0] for i in indicators]
-                vals_c = [i[1] for i in indicators]
-                vals_w = [i[2] for i in indicators]
+            def paired_bar(rows_data, title, height=300):
+                """rows_data: list of (label, pct_mother, pct_companion)"""
+                labels = [r[0] for r in rows_data]
+                vals_w = [r[1] for r in rows_data]
+                vals_c = [r[2] for r in rows_data]
                 fig = go.Figure()
                 fig.add_bar(name=lbl_w, x=labels, y=vals_w, marker_color=TEAL,
-                            text=[f"{v:.1f}%" for v in vals_w], textposition="outside",
-                            textfont=dict(size=9))
+                            text=[f"{v:.1f}%" for v in vals_w],
+                            textposition="outside", textfont=dict(size=9))
                 fig.add_bar(name=lbl_c, x=labels, y=vals_c, marker_color=BLUISH,
-                            text=[f"{v:.1f}%" for v in vals_c], textposition="outside",
-                            textfont=dict(size=9))
+                            text=[f"{v:.1f}%" for v in vals_c],
+                            textposition="outside", textfont=dict(size=9))
                 fig.update_layout(
                     barmode="group", height=height,
-                    margin=dict(t=44,b=60,l=8,r=8),
+                    margin=dict(t=44, b=70, l=8, r=8),
                     plot_bgcolor="white", paper_bgcolor="white",
                     yaxis=dict(range=[0,115], gridcolor="#eeeeee", title="%"),
                     xaxis=dict(showgrid=False),
-                    legend=dict(orientation="h", y=-0.18, x=0.5, xanchor="center"),
-                    title=dict(text=title, font=dict(size=13, family="DM Serif Display, serif"),
+                    legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center"),
+                    title=dict(text=title,
+                               font=dict(size=13, family="DM Serif Display, serif"),
                                x=0, xanchor="left"),
                 )
                 return fig
 
-            # ── 1. Satisfaction & expectations ───────────────────────────────
+            # ── 1. Satisfaction — separate from expectations ──────────────────
             c1, c2 = st.columns(2)
 
-            sat_inds = []
-            if "satisfaction_c" in paired.columns and "satisfaction_w" in paired.columns:
-                sat_inds.append((
-                    {"EN":"Good/Very good","FR":"Bien/Très bien","ES":"Buena/Muy buena"}[lang],
-                    pct_isin(paired["satisfaction_c"], [4,5]),
-                    pct_isin(paired["satisfaction_w"], [4,5]),
-                ))
-            if "expect_c" in paired.columns and "expect_w" in paired.columns:
-                sat_inds.append((
-                    {"EN":"Expected good/very good","FR":"Attendait bien/très bien","ES":"Esperaba buena/muy buena"}[lang],
-                    pct_isin(paired["expect_c"], [4,5]),
-                    pct_isin(paired["expect_w"], [4,5]),
-                ))
-            if sat_inds:
-                c1.plotly_chart(paired_bar(sat_inds,
-                    {"EN":"Satisfaction & Expectations","FR":"Satisfaction & Attentes","ES":"Satisfacción y Expectativas"}[lang]),
-                    use_container_width=True)
+            if "satisfaction_c" in paired and "satisfaction_w" in paired:
+                c1.plotly_chart(paired_bar(
+                    [( {"EN":"Good/Very good","FR":"Bien/Très bien","ES":"Buena/Muy buena"}[lang],
+                       pct(paired["satisfaction_w"], [4,5]),
+                       pct(paired["satisfaction_c"], [4,5]) )],
+                    {"EN":"Overall satisfaction","FR":"Satisfaction globale","ES":"Satisfacción general"}[lang],
+                    height=280), use_container_width=True)
 
-            # ── 2. Staff care quality ─────────────────────────────────────────
-            staff_inds = []
-            for col, label in [
-                ("coop",         {"EN":"Staff coordinated","FR":"Personnel coordonné","ES":"Personal coordinado"}[lang]),
-                ("decisions",    {"EN":"Included in decisions","FR":"Inclus dans décisions","ES":"Incluidos en decisiones"}[lang]),
-                ("respect",      {"EN":"Always treated respectfully","FR":"Toujours respectée","ES":"Siempre con respeto"}[lang]),
-                ("privacy",      {"EN":"Privacy always protected","FR":"Intimité toujours protégée","ES":"Privacidad siempre protegida"}[lang]),
+            if "expect_c" in paired and "expect_w" in paired:
+                c2.plotly_chart(paired_bar(
+                    [( {"EN":"Expected good/very good","FR":"Attendait bien/très bien","ES":"Esperaba buena/muy buena"}[lang],
+                       pct(paired["expect_w"], [4,5]),
+                       pct(paired["expect_c"], [4,5]) )],
+                    {"EN":"Expectations before arrival","FR":"Attentes avant l'arrivée","ES":"Expectativas antes de llegar"}[lang],
+                    height=280), use_container_width=True)
+
+            # ── 2. Staff quality — respect, privacy, coop ────────────────────
+            staff_rows = []
+            for col, lbl in [
+                ("respect",  {"EN":"Treated respectfully (Always)","FR":"Traité avec respect (Toujours)","ES":"Con respeto (Siempre)"}[lang]),
+                ("privacy",  {"EN":"Privacy protected (Always)","FR":"Intimité protégée (Toujours)","ES":"Privacidad protegida (Siempre)"}[lang]),
+                ("coop",     {"EN":"Staff coordinated (Always)","FR":"Personnel coordonné (Toujours)","ES":"Personal coordinado (Siempre)"}[lang]),
             ]:
                 cc, wc = f"{col}_c", f"{col}_w"
-                if cc in paired.columns and wc in paired.columns:
-                    staff_inds.append((label, pct_eq(paired[cc], 5), pct_eq(paired[wc], 5)))
-            if staff_inds:
-                c2.plotly_chart(paired_bar(staff_inds,
-                    {"EN":"Staff Quality (Always/Strongly agree)","FR":"Qualité du personnel (Toujours)","ES":"Calidad del personal (Siempre)"}[lang],
-                    height=340),
-                    use_container_width=True)
+                if cc in paired and wc in paired:
+                    staff_rows.append((lbl, pct(paired[wc], [5]), pct(paired[cc], [5])))
+            if staff_rows:
+                st.plotly_chart(paired_bar(staff_rows,
+                    {"EN":"Respect, Privacy & Coordination","FR":"Respect, Intimité & Coordination","ES":"Respeto, Privacidad y Coordinación"}[lang],
+                    height=320), use_container_width=True)
 
-            # ── 3. Discharge information ──────────────────────────────────────
-            info_fields = {
-                "info/1": {"EN":"Baby care","FR":"Soins bébé","ES":"Cuidar bebé"},
-                "info/2": {"EN":"Family planning","FR":"Planification familiale","ES":"Planificación familiar"},
-                "info/3": {"EN":"Warning signs","FR":"Signes d'alarme","ES":"Señales de alarma"},
-                "info/4": {"EN":"Follow-up care","FR":"Suivi","ES":"Seguimiento"},
-            }
-            info_inds = []
-            for col, labels in info_fields.items():
-                cc, wc = f"{col}_c", f"{col}_w"
-                if cc in paired.columns and wc in paired.columns:
-                    info_inds.append((labels[lang], pct_eq(paired[cc], 1), pct_eq(paired[wc], 1)))
-            if info_inds:
-                st.plotly_chart(paired_bar(info_inds,
-                    {"EN":"Discharge information received","FR":"Informations reçues à la sortie","ES":"Información recibida al alta"}[lang],
-                    height=300),
-                    use_container_width=True)
-
-            # ── 4. Pain relief & comfort ──────────────────────────────────────
+            # ── 3. Communication ──────────────────────────────────────────────
             c3, c4 = st.columns(2)
-            pain_inds = []
-            for col, label in [
-                ("pharma", {"EN":"Pain relief on time","FR":"Analgésie à temps","ES":"Analgesia a tiempo"}[lang]),
-                ("comfort", {"EN":"Comfort measures encouraged","FR":"Mesures confort encouragées","ES":"Confort no-farma"}[lang]),
+            comm_rows = []
+            for col, lbl in [
+                ("spoke",        {"EN":"Staff spoke clearly (Always)","FR":"Personnel clair (Toujours)","ES":"Personal habló claro (Siempre)"}[lang]),
+                ("introduction", {"EN":"Staff introduced themselves (Always)","FR":"Personnel présenté (Toujours)","ES":"Personal se presentó (Siempre)"}[lang]),
             ]:
                 cc, wc = f"{col}_c", f"{col}_w"
-                if cc in paired.columns and wc in paired.columns:
-                    pain_inds.append((label, pct_eq(paired[cc], 4), pct_eq(paired[wc], 4)))
-            if pain_inds:
-                c3.plotly_chart(paired_bar(pain_inds,
-                    {"EN":"Pain & Comfort","FR":"Douleur & Confort","ES":"Dolor y Confort"}[lang],
-                    height=280),
-                    use_container_width=True)
+                if cc in paired and wc in paired:
+                    comm_rows.append((lbl, pct(paired[wc], [5]), pct(paired[cc], [5])))
+            if comm_rows:
+                c3.plotly_chart(paired_bar(comm_rows,
+                    {"EN":"Communication","FR":"Communication","ES":"Comunicación"}[lang],
+                    height=300), use_container_width=True)
 
-            # ── 5. Communication ─────────────────────────────────────────────
-            comm_inds = []
-            for col, label in [
-                ("spoke",        {"EN":"Staff spoke clearly","FR":"Personnel clair","ES":"Personal habló claro"}[lang]),
-                ("introduction", {"EN":"Staff introduced themselves","FR":"Personnel présenté","ES":"Personal se presentó"}[lang]),
-            ]:
+            # ── 4. Decisions & information ────────────────────────────────────
+            dec_rows = []
+            if "decisions_c" in paired and "decisions_w" in paired:
+                dec_rows.append((
+                    {"EN":"Yes, with full information","FR":"Oui, avec toute l'info","ES":"Sí, con toda la información"}[lang],
+                    pct(paired["decisions_w"], [1]),
+                    pct(paired["decisions_c"], [1]),
+                ))
+            if dec_rows:
+                c4.plotly_chart(paired_bar(dec_rows,
+                    {"EN":"Included in decisions","FR":"Inclus dans les décisions","ES":"Incluidos en decisiones"}[lang],
+                    height=300), use_container_width=True)
+
+            # ── 5. Discharge information ──────────────────────────────────────
+            info_rows = []
+            info_labels = {
+                "info/1": {"EN":"Baby care","FR":"Soins bébé","ES":"Cuidar bebé"},
+                "info/2": {"EN":"Family planning","FR":"Planif. familiar","ES":"Plan. familiar"},
+                "info/3": {"EN":"Warning signs","FR":"Signes d'alarme","ES":"Señales de alarma"},
+                "info/4": {"EN":"Follow-up","FR":"Suivi","ES":"Seguimiento"},
+            }
+            for col, lbls in info_labels.items():
                 cc, wc = f"{col}_c", f"{col}_w"
-                if cc in paired.columns and wc in paired.columns:
-                    comm_inds.append((label, pct_eq(paired[cc], 5), pct_eq(paired[wc], 5)))
-            if comm_inds:
-                c4.plotly_chart(paired_bar(comm_inds,
-                    {"EN":"Communication (Always)","FR":"Communication (Toujours)","ES":"Comunicación (Siempre)"}[lang],
-                    height=280),
-                    use_container_width=True)
+                if cc in paired and wc in paired:
+                    info_rows.append((lbls[lang], pct(paired[wc], [1]), pct(paired[cc], [1])))
+            if info_rows:
+                st.plotly_chart(paired_bar(info_rows,
+                    {"EN":"Discharge information received","FR":"Informations reçues à la sortie","ES":"Información recibida al alta"}[lang],
+                    height=310), use_container_width=True)
 
-    else:
-        st.info({"EN":"Women's data not available for pairing.",
-                 "FR":"Données femmes non disponibles.",
-                 "ES":"Datos de mujeres no disponibles."}[lang])
-else:
-    st.info({"EN":"No ID field found in companion data — pairing not available.",
-             "FR":"Champ ID absent — croisement non disponible.",
-             "ES":"Campo ID no encontrado — cruce no disponible."}[lang])
 
 # ── Raw data ──────────────────────────────────────────────────────────────────
 with st.expander({"EN":"📋 Raw data","FR":"📋 Données brutes","ES":"📋 Datos brutos"}[lang]):
