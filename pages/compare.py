@@ -286,7 +286,6 @@ if demo_rows:
 
 # ── Maternal age distribution ─────────────────────────────────────────────────
 if "age" in df.columns and df["age"].notna().any():
-    st.markdown(f'<span style="font-size:0.85rem;color:#555;font-family:DM Serif Display,serif">{"Maternal age distribution" if lang=="EN" else "Distribution de l\'âge maternel" if lang=="FR" else "Distribución de edad materna"}</span>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
 
     # Grouped bar by age band
@@ -307,7 +306,7 @@ if "age" in df.columns and df["age"].notna().any():
                      labels={"Pct":"%","Group":"","Facility":""},
                      text="Pct")
         fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside", textfont=dict(size=9))
-        fig.update_layout(height=320, margin=dict(t=8,b=70,l=8,r=8),
+        fig.update_layout(height=340, margin=dict(t=48,b=70,l=8,r=8),
                           plot_bgcolor="white", paper_bgcolor="white",
                           legend=dict(orientation="h",y=-0.22,x=0.5,xanchor="center"),
                           yaxis=dict(gridcolor="#eeeeee",range=[0,65]),
@@ -333,7 +332,7 @@ if "age" in df.columns and df["age"].notna().any():
             fig2.add_trace(go.Box(y=vals, name=lbl, marker_color=color_map.get(lbl, TEAL),
                                   boxmean="sd", jitter=0.3, pointpos=0,
                                   marker=dict(size=3, opacity=0.5)))
-        fig2.update_layout(height=320, margin=dict(t=8,b=70,l=8,r=8),
+        fig2.update_layout(height=340, margin=dict(t=48,b=70,l=8,r=8),
                            plot_bgcolor="white", paper_bgcolor="white",
                            showlegend=False,
                            yaxis=dict(gridcolor="#eeeeee", title={"EN":"Age (yrs)","FR":"Âge","ES":"Edad"}[lang]),
@@ -344,7 +343,6 @@ if "age" in df.columns and df["age"].notna().any():
 
 # ── Gestational age distribution ──────────────────────────────────────────────
 if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
-    st.markdown(f'<span style="font-size:0.85rem;color:#555;font-family:DM Serif Display,serif">{"Gestational age distribution" if lang=="EN" else "Distribution de l\'âge gestationnel" if lang=="FR" else "Distribución de edad gestacional"}</span>', unsafe_allow_html=True)
     c3, c4 = st.columns(2)
 
     # Grouped bar by gestational band — clinically meaningful cutoffs
@@ -382,7 +380,7 @@ if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
                       labels={"Pct":"%","Group":"","Facility":""},
                       text="Pct")
         fig3.update_traces(texttemplate="%{text:.1f}%", textposition="outside", textfont=dict(size=9))
-        fig3.update_layout(height=340, margin=dict(t=8,b=80,l=8,r=8),
+        fig3.update_layout(height=360, margin=dict(t=48,b=80,l=8,r=8),
                            plot_bgcolor="white", paper_bgcolor="white",
                            legend=dict(orientation="h",y=-0.24,x=0.5,xanchor="center"),
                            yaxis=dict(gridcolor="#eeeeee",range=[0,80]),
@@ -408,7 +406,7 @@ if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
             fig4.add_trace(go.Box(y=vals, name=lbl, marker_color=color_map.get(lbl, TEAL),
                                   boxmean="sd", jitter=0.3, pointpos=0,
                                   marker=dict(size=3, opacity=0.5)))
-        fig4.update_layout(height=340, margin=dict(t=8,b=70,l=8,r=8),
+        fig4.update_layout(height=360, margin=dict(t=48,b=70,l=8,r=8),
                            plot_bgcolor="white", paper_bgcolor="white",
                            showlegend=False,
                            yaxis=dict(gridcolor="#eeeeee",
