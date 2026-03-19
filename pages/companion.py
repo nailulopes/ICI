@@ -10,7 +10,7 @@ from ici_shared import (
     FACILITIES, TEAL, ORANGE, SKY, VERMILION, BLUISH, PINK,
     LIKERT_COLORS, QUALITY_COLORS, PIE_COLORS,
     inject_css, sidebar_logo, sidebar_facility_header, logout_button, lang_selector, date_filter,
-    load_companion, prep_companion, to_int, parse_multiselect, clean_layout,
+    load_companion, load_women, prep_companion, prep_women, to_int, parse_multiselect, clean_layout,
     get_facility_ids, get_role,
     LIKERT5_MAP, QUALITY_ORDER, LIKERT_QS_C,
     COMP_EMOTION_MAP, POSITIVE_EMO_C, INFO_LABELS_C,
@@ -116,9 +116,9 @@ if "_submission_time" in df.columns and df["_submission_time"].notna().any():
 st.markdown(f'<div class="section-title">{"Companion Profile" if lang=="EN" else "Profil des acompagnants" if lang=="FR" else "Perfil del Acompañante"}</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
 for col_lbl, title, color, container in [
-    ("comp_label",       {"EN":"Relationship","FR":"Relation","ES":"Relación"}[lang],         BLUISH, c1),
-    ("education_label",  {"EN":"Education","FR":"Éducation","ES":"Educación"}[lang],          PINK,   c2),
-    ("method_label",     {"EN":"Birth method (observed)","FR":"Mode accouchement","ES":"Vía de nacimiento"}[lang], TEAL, c3),
+    ("comp_detail_label", {"EN":"Relationship","FR":"Relation","ES":"Relación"}[lang],         BLUISH, c1),
+    ("education_label",   {"EN":"Education","FR":"Éducation","ES":"Educación"}[lang],          PINK,   c2),
+    ("method_label",      {"EN":"Birth method (observed)","FR":"Mode accouchement","ES":"Vía de nacimiento"}[lang], TEAL, c3),
 ]:
     if col_lbl in df.columns:
         vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
@@ -271,6 +271,112 @@ if "emotion_label" in df.columns:
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     st.caption({"EN":"Single emotion per respondent.","FR":"Une émotion par répondant.","ES":"Una emoción por encuestado."}[lang])
     st.plotly_chart(fig, use_container_width=True)
+
+# ── Paired data (companion ↔ women, linked by 'id') ──────────────────────────
+st.markdown(f'<div class="section-title">{"Paired Data — Companion & Mother" if lang=="EN" else "Données croisées — Acompagnant & Mère" if lang=="FR" else "Datos cruzados — Acompañante & Madre"}</div>', unsafe_allow_html=True)
+
+if "id" in df.columns and df["id"].notna().any():
+    with st.spinner({"EN":"Loading women's data for matching…","FR":"Chargement données femmes…","ES":"Cargando datos de mujeres…"}[lang]):
+        raw_w = load_women(fac_ids)
+
+    if not raw_w.empty:
+        dw = prep_women(raw_w, lang)
+        # Apply same facility filter as companion if admin selected one
+        if get_role() == "admin":
+            sel = st.session_state.get("fac_filter_c", "all")
+            if sel != "all":
+                dw = dw[dw["_facility_id"] == sel]
+
+        # Merge on id — both forms ask participants to write the same code
+        df["id"] = df["id"].astype(str).str.strip()
+        dw["id"] = dw["id"].astype(str).str.strip()
+
+        paired = df[["id","satisfaction","comp_detail_label","complab","comp_deliv","emotion_label"]].merge(
+            dw[["id","satisfaction","method_label","verbal","phys","skin_int","respect","privacy"]],
+            on="id", suffixes=("_c","_w")
+        )
+        n_paired = len(paired)
+
+        if n_paired == 0:
+            st.info({"EN":"No matched pairs found for the selected period/facility.",
+                     "FR":"Aucune paire trouvée pour la période/établissement sélectionné.",
+                     "ES":"No se encontraron pares para el período/establecimiento seleccionado."}[lang])
+        else:
+            st.caption({"EN":f"{n_paired} matched pairs (companion + mother with same ID).",
+                        "FR":f"{n_paired} paires identifiées (acompagnant + mère, même ID).",
+                        "ES":f"{n_paired} pares identificados (acompañante + madre, mismo ID)."}[lang])
+
+            c1, c2 = st.columns(2)
+
+            # Satisfaction comparison: companion vs mother
+            if "satisfaction_c" in paired.columns and "satisfaction_w" in paired.columns:
+                sat_c = (paired["satisfaction_c"].isin([4,5])).sum() / n_paired * 100
+                sat_w = (paired["satisfaction_w"].isin([4,5])).sum() / n_paired * 100
+                import plotly.graph_objects as go
+                fig = go.Figure()
+                fig.add_bar(name={"EN":"Mother","FR":"Mère","ES":"Madre"}[lang],
+                            x=[{"EN":"Good/Very good care","FR":"Bons soins","ES":"Atención buena/muy buena"}[lang]],
+                            y=[sat_w], marker_color=TEAL,
+                            text=[f"{sat_w:.1f}%"], textposition="outside")
+                fig.add_bar(name={"EN":"Companion","FR":"Acompagnant","ES":"Acompañante"}[lang],
+                            x=[{"EN":"Good/Very good care","FR":"Bons soins","ES":"Atención buena/muy buena"}[lang]],
+                            y=[sat_c], marker_color=BLUISH,
+                            text=[f"{sat_c:.1f}%"], textposition="outside")
+                fig.update_layout(barmode="group", height=280,
+                                  margin=dict(t=40,b=8,l=8,r=8),
+                                  plot_bgcolor="white", paper_bgcolor="white",
+                                  yaxis=dict(range=[0,110], gridcolor="#eeeeee"),
+                                  xaxis=dict(showgrid=False),
+                                  legend=dict(orientation="h",y=-0.15,x=0.5,xanchor="center"),
+                                  title=dict(text={"EN":"Satisfaction","FR":"Satisfaction","ES":"Satisfacción"}[lang],
+                                             font=dict(size=13,family="DM Serif Display, serif"),
+                                             x=0, xanchor="left"))
+                c1.plotly_chart(fig, use_container_width=True)
+
+            # Verbal/physical mistreatment as reported by companion
+            if "verbal" in paired.columns and "phys" in paired.columns:
+                verb_pct = (paired["verbal"].isin([3,4,5])).sum() / n_paired * 100
+                phys_pct = (paired["phys"].isin([3,4,5])).sum() / n_paired * 100
+                fig2 = go.Figure()
+                cats = [{"EN":"Verbal mistreatment","FR":"Violence verbale","ES":"Violencia verbal"}[lang],
+                        {"EN":"Physical mistreatment","FR":"Violence physique","ES":"Violencia física"}[lang]]
+                fig2.add_bar(x=cats, y=[verb_pct, phys_pct],
+                             marker_color=[VERMILION, ORANGE],
+                             text=[f"{verb_pct:.1f}%", f"{phys_pct:.1f}%"],
+                             textposition="outside")
+                fig2.update_layout(height=280,
+                                   margin=dict(t=40,b=8,l=8,r=8),
+                                   plot_bgcolor="white", paper_bgcolor="white",
+                                   showlegend=False,
+                                   yaxis=dict(range=[0,110], gridcolor="#eeeeee"),
+                                   xaxis=dict(showgrid=False),
+                                   title=dict(text={"EN":"Mistreatment reported by companion","FR":"Maltraitance (acompagnant)","ES":"Maltrato reportado por acompañante"}[lang],
+                                              font=dict(size=13,family="DM Serif Display, serif"),
+                                              x=0, xanchor="left"))
+                c2.plotly_chart(fig2, use_container_width=True)
+
+            # Companion relationship breakdown among paired records
+            if "comp_detail_label" in paired.columns:
+                rel_vc = paired["comp_detail_label"].dropna().value_counts().reset_index()
+                rel_vc.columns = ["r","n"]
+                rel_vc["text"] = rel_vc.apply(lambda x: f"{x['n']} ({x['n']/n_paired*100:.1f}%)", axis=1)
+                fig3 = px.bar(rel_vc, x="n", y="r", orientation="h",
+                              color_discrete_sequence=[BLUISH], text="text",
+                              labels={"r":"","n":""})
+                fig3.update_traces(textposition="outside", textfont=dict(size=9))
+                fig3 = clean_layout(fig3,
+                                    title={"EN":"Companion relationship (paired)","FR":"Relation acompagnant (paires)","ES":"Relación acompañante (pares)"}[lang],
+                                    height=max(220, len(rel_vc)*32+60))
+                fig3.update_xaxes(gridcolor="#eeeeee"); fig3.update_yaxes(showgrid=False)
+                st.plotly_chart(fig3, use_container_width=True)
+    else:
+        st.info({"EN":"Women's data not available for pairing.",
+                 "FR":"Données femmes non disponibles.",
+                 "ES":"Datos de mujeres no disponibles."}[lang])
+else:
+    st.info({"EN":"No ID field found in companion data — pairing not available.",
+             "FR":"Champ ID absent — croisement non disponible.",
+             "ES":"Campo ID no encontrado — cruce no disponible."}[lang])
 
 # ── Raw data ──────────────────────────────────────────────────────────────────
 with st.expander({"EN":"📋 Raw data","FR":"📋 Données brutes","ES":"📋 Datos brutos"}[lang]):
