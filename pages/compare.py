@@ -99,8 +99,15 @@ def display_label(fid: str) -> str:
 df["_display"] = df["_facility_id"].map(display_label)
 my_display = display_label(my_fids[0]) if len(my_fids) == 1 else None
 
-# Color: my facility always TEAL, others cycle through palette
+# Color assignment:
+# - Non-admin: own facility = TEAL, others cycle BLUISH/ORANGE/...
+# - Admin: no concept of "own", cycle through full palette
+_palette = [TEAL, BLUISH, ORANGE, PINK, VERMILION, SKY, YELLOW]
+
 def fac_color(fid: str) -> str:
+    if role == "admin":
+        idx = fids_to_load.index(fid) if fid in fids_to_load else 0
+        return _palette[idx % len(_palette)]
     if fid in my_fids:
         return TEAL
     others_in_plot = [f for f in fids_to_load if f not in my_fids]
