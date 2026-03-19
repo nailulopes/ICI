@@ -121,20 +121,49 @@ compare_by = st.sidebar.radio(
 by_country = (compare_by == _by_opts[1])
 
 if by_country:
-    # Build a synthetic group list from distinct countries in the loaded data
+    # Build group list from distinct countries in the loaded data
     countries = sorted(df["_country"].dropna().unique().tolist())
-    group_ids    = countries                            # group identifier
-    group_label  = lambda g: g                         # label = country name itself
+    group_ids    = countries
     group_filter = lambda gid: df[df["_country"] == gid]
-    # Color: own country = TEAL for facility logins; cycle for admin
+
+    # For non-admin: own country shows real name, others show anonymous continent label
+    # e.g. "South America A", "North America A" — geographic context without identification
     my_countries = list(df[df["_facility_id"].isin(my_fids)]["_country"].dropna().unique()) if my_fids else []
+
+    # Build continent label map — count occurrences per continent for letter suffix
+    _cont_counters = {}
+    _country_anon  = {}  # country → anonymous label
+    for c in countries:
+        if c in my_countries:
+            continue  # own country always shows real name
+        # Get continent from FACILITIES
+        cont = next((FACILITIES[fid].get("continent","Unknown")
+                     for fid in FACILITIES if FACILITIES[fid]["country"] == c), "Unknown")
+        cont_lbl = {"EN": cont,
+                    "FR": {"North America":"Amérique du Nord","South America":"Amérique du Sud",
+                           "Europe":"Europe","Africa":"Afrique","Asia":"Asie",
+                           "Oceania":"Océanie","Unknown":"Inconnu"}.get(cont, cont),
+                    "ES": {"North America":"América del Norte","South America":"América del Sur",
+                           "Europe":"Europa","Africa":"África","Asia":"Asia",
+                           "Oceania":"Oceanía","Unknown":"Desconocido"}.get(cont, cont),
+                   }[lang]
+        _cont_counters[cont_lbl] = _cont_counters.get(cont_lbl, 0) + 1
+        letter = "ABCDEFGH"[_cont_counters[cont_lbl] - 1]
+        _country_anon[c] = f"{cont_lbl} {letter}"
+
+    def group_label(gid):
+        if role == "admin" or gid in my_countries:
+            return gid  # real country name
+        return _country_anon.get(gid, gid)
+
     def group_color(gid):
         if role != "admin" and gid in my_countries:
             return TEAL
-        idx = [g for g in countries if role == "admin" or g not in my_countries].index(gid) \
-              if gid in [g for g in countries if role == "admin" or g not in my_countries] else 0
-        return _palette[idx % len(_palette)]
-    color_map = {g: group_color(g) for g in group_ids}
+        others = [g for g in countries if role == "admin" or g not in my_countries]
+        idx = others.index(gid) if gid in others else 0
+        return _palette[(idx + (0 if role == "admin" else 1)) % len(_palette)]
+
+    color_map = {group_label(g): group_color(g) for g in group_ids}
 else:
     group_ids    = fids_to_load
     group_label  = display_label
