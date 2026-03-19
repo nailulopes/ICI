@@ -241,7 +241,7 @@ def fac_bar(rows_data, title, height=320, pct_range=105):
                  labels={"Pct":"%","Label":"","Facility":""},
                  text="Pct")
     fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside", textfont=dict(size=9))
-    fig.update_layout(height=height, margin=dict(t=8,b=100,l=8,r=8),
+    fig.update_layout(height=height, margin=dict(t=48,b=100,l=8,r=8),
                       plot_bgcolor="white", paper_bgcolor="white",
                       legend=dict(orientation="h",y=-0.26,x=0.5,xanchor="center"),
                       yaxis=dict(gridcolor="#eeeeee",range=[0,pct_range]),
@@ -530,12 +530,11 @@ st.markdown(f'<div class="section-title">{"Info Before Discharge" if lang=="EN" 
 info_rows = []
 for fid in fids_to_load:
     fac_df = df[df["_facility_id"]==fid]; n=len(fac_df)
-    if n==0: continue
+    if n==0 or "info" not in fac_df.columns: continue
+    counts = parse_multiselect(fac_df["info"], list(INFO_LABELS_W[lang].keys()))
     for k, lbl in INFO_LABELS_W[lang].items():
-        col = f"info/{k}"
-        if col in fac_df.columns:
-            info_rows.append({"Facility":display_label(fid),"Topic":lbl,
-                              "Pct":round((fac_df[col]==1).sum()/n*100,1)})
+        info_rows.append({"Facility":display_label(fid),"Topic":lbl,
+                          "Pct":round(counts[k]/n*100,1)})
 if info_rows:
     st.plotly_chart(fac_bar(info_rows,
         {"EN":"Topics covered before discharge","FR":"Sujets abordés avant la sortie","ES":"Temas antes del alta"}[lang],
