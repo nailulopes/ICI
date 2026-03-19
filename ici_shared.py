@@ -566,4 +566,13 @@ def prep_companion(df: pd.DataFrame, lang: str) -> pd.DataFrame:
         df["age"] = to_int(df["age"])
         df["age_group"] = pd.cut(df["age"], bins=[0,24,29,34,39,99],
                                   labels=["<25","25–29","30–34","35–39","40+"])
+    # Build a detailed relationship label: for comp=2 (family), append comp_other if present
+    if "comp_label" in df.columns:
+        def _detail(row):
+            lbl = row.get("comp_label")
+            other = str(row.get("comp_other", "") or "").strip()
+            if other and other.lower() not in ("nan", "none", ""):
+                return f"{lbl} — {other.capitalize()}"
+            return lbl
+        df["comp_detail_label"] = df.apply(_detail, axis=1)
     return df
