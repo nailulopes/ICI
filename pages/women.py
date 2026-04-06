@@ -172,7 +172,49 @@ if "no_deliveries" in df.columns:
     fig.update_xaxes(showgrid=False); fig.update_yaxes(gridcolor="#eeeeee")
     c2.plotly_chart(fig, use_container_width=True)
 
-# ── Likert ────────────────────────────────────────────────────────────────────
+# ── Prenatal education ────────────────────────────────────────────────────────
+if "prenatal_attended" in df.columns and df["prenatal_attended"].notna().any():
+    st.markdown(f'<div class="section-title">{"Prenatal Education" if lang=="EN" else "Éducation prénatale" if lang=="FR" else "Educación prenatal"}</div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+
+    # Chart 1: Attended yes/no
+    att = df["prenatal_attended"].dropna().value_counts().reset_index(); att.columns=["r","n"]
+    att["text"] = att.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
+    fig = px.bar(att, x="n", y="r", orientation="h",
+                 color_discrete_sequence=[TEAL], text="text", labels={"r":"","n":""})
+    fig.update_traces(textposition="outside", textfont=dict(size=9))
+    fig = clean_layout(fig, title={"EN":"Attended prenatal education","FR":"A suivi éducation prénatale","ES":"Asistió a educación prenatal"}[lang], height=220)
+    fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
+    c1.plotly_chart(fig, use_container_width=True)
+
+    # Chart 2: Location breakdown (among those who attended)
+    if "prenatal_detail" in df.columns:
+        det = df["prenatal_detail"].dropna().value_counts().reset_index(); det.columns=["r","n"]
+        n_answered = det["n"].sum()
+        det["text"] = det.apply(lambda x: f"{x['n']} ({x['n']/n_answered*100:.1f}%)", axis=1)
+        fig2 = px.bar(det, x="n", y="r", orientation="h",
+                      color_discrete_sequence=[ORANGE], text="text", labels={"r":"","n":""})
+        fig2.update_traces(textposition="outside", textfont=dict(size=9))
+        fig2 = clean_layout(fig2, title={"EN":"Where (all respondents)","FR":"Où (tous les répondants)","ES":"Dónde (todos los encuestados)"}[lang],
+                            height=max(240, len(det)*44+80))
+        fig2.update_xaxes(gridcolor="#eeeeee"); fig2.update_yaxes(showgrid=False)
+        c2.plotly_chart(fig2, use_container_width=True)
+
+    # Chart 3: Location of facility vs other (among those who attended)
+    if "prenatal_location" in df.columns:
+        attended_df = df[df["prenatal_attended"] == {"EN":"Yes","FR":"Oui","ES":"Sí"}[lang]]
+        if len(attended_df) > 0:
+            loc = attended_df["prenatal_location"].dropna().value_counts().reset_index(); loc.columns=["r","n"]
+            n_att = loc["n"].sum()
+            loc["text"] = loc.apply(lambda x: f"{x['n']} ({x['n']/n_att*100:.1f}%)", axis=1)
+            fig3 = px.bar(loc, x="n", y="r", orientation="h",
+                          color_discrete_sequence=[BLUISH], text="text", labels={"r":"","n":""})
+            fig3.update_traces(textposition="outside", textfont=dict(size=9))
+            fig3 = clean_layout(fig3, title={"EN":"Location (among those who attended)","FR":"Lieu (parmi ceux qui ont participé)","ES":"Lugar (entre quienes asistieron)"}[lang], height=220)
+            fig3.update_xaxes(gridcolor="#eeeeee"); fig3.update_yaxes(showgrid=False)
+            st.plotly_chart(fig3, use_container_width=True)
+
+
 st.markdown(f'<div class="section-title">{"Quality of Care — Likert Scales" if lang=="EN" else "Qualité des soins — Échelles de Likert" if lang=="FR" else "Calidad de Atención — Escalas Likert"}</div>', unsafe_allow_html=True)
 likert_order = list(LIKERT5_MAP[lang].values())
 rows = []
