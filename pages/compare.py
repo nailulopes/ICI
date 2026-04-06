@@ -335,6 +335,15 @@ for gid in group_ids:
     prim    = (fac_df["no_deliveries"]==1).sum()/n*100 if "no_deliveries" in fac_df.columns else np.nan
     risk    = (fac_df["risk"]==1).sum()/n*100 if "risk" in fac_df.columns else np.nan
     preterm = (fac_df["weeks_clean"] < 37).sum()/gest_s.notna().sum()*100 if gest_s.notna().sum() > 0 else np.nan
+    # Prenatal education
+    yes_lbl = {"EN":"Yes","FR":"Oui","ES":"Sí"}[lang]
+    prenatal_pct = (fac_df["prenatal_attended"]==yes_lbl).sum()/n*100 \
+                   if "prenatal_attended" in fac_df.columns else np.nan
+    this_fac_pct = np.nan
+    if "prenatal_location" in fac_df.columns and not np.isnan(prenatal_pct) and prenatal_pct > 0:
+        att = fac_df[fac_df["prenatal_attended"]==yes_lbl]
+        this_lbl = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
+        this_fac_pct = (att["prenatal_location"]==this_lbl).sum()/len(att)*100 if len(att)>0 else np.nan
 
     demo_rows.append({
         {"EN":"Facility","FR":"Établissement","ES":"Establecimiento"}[lang]: lbl,
@@ -344,6 +353,8 @@ for gid in group_ids:
         {"EN":"% Primiparous","FR":"% Primipares","ES":"% Primíparas"}[lang]: f"{prim:.1f}%" if not np.isnan(prim) else "–",
         {"EN":"% Preterm (<37 wks)","FR":"% Prématuré (<37 sem)","ES":"% Pretérmino (<37 sem)"}[lang]: f"{preterm:.1f}%" if not np.isnan(preterm) else "–",
         {"EN":"% High-risk","FR":"% Haut risque","ES":"% Alto riesgo"}[lang]: f"{risk:.1f}%" if not np.isnan(risk) else "–",
+        {"EN":"% Prenatal education","FR":"% Éducation prénatale","ES":"% Educación prenatal"}[lang]: f"{prenatal_pct:.1f}%" if not np.isnan(prenatal_pct) else "–",
+        {"EN":"% At this facility (of attendees)","FR":"% Dans cet étab. (parmi participants)","ES":"% En esta inst. (entre asistentes)"}[lang]: f"{this_fac_pct:.1f}%" if not np.isnan(this_fac_pct) else "–",
     })
 if demo_rows:
     st.dataframe(pd.DataFrame(demo_rows), use_container_width=True, hide_index=True)
@@ -479,6 +490,55 @@ if "weeks_clean" in df.columns and df["weeks_clean"].notna().any():
                            title=dict(text={"EN":"Gestational age distribution (box + points)","FR":"Distribution âge gestationnel","ES":"Distribución edad gestacional"}[lang],
                                       font=dict(size=12,family="DM Serif Display, serif"),x=0,xanchor="left"))
         c4.plotly_chart(fig4, use_container_width=True)
+
+# ── Prenatal education ────────────────────────────────────────────────────────
+if "prenatal_attended" in df.columns and df["prenatal_attended"].notna().any():
+    yes_lbl = {"EN":"Yes","FR":"Oui","ES":"Sí"}[lang]
+    no_lbl  = {"EN":"No", "FR":"Non","ES":"No"}[lang]
+
+    # Chart 1: % attended by group
+    att_rows = []
+    for gid in group_ids:
+        fac_df = group_filter(gid); n=len(fac_df)
+        if n==0 or "prenatal_attended" not in fac_df.columns: continue
+        att_rows.append({"Facility":fac_label(gid),"Label":{"EN":"Attended prenatal education","FR":"Éducation prénatale suivie","ES":"Asistió a educación prenatal"}[lang],
+                         "Pct": round((fac_df["prenatal_attended"]==yes_lbl).sum()/n*100,1)})
+    if att_rows:
+        c1, c2 = st.columns(2)
+        c1.plotly_chart(fac_bar(att_rows,
+            {"EN":"% Attended prenatal education","FR":"% Éducation prénatale","ES":"% Educación prenatal"}[lang],
+            height=280, pct_range=105), use_container_width=True)
+
+        # Chart 2: location breakdown (this facility vs other) among attendees
+        loc_rows = []
+        for gid in group_ids:
+            fac_df = group_filter(gid); n=len(fac_df)
+            if n==0 or "prenatal_location" not in fac_df.columns: continue
+            attended = fac_df[fac_df["prenatal_attended"]==yes_lbl]
+            if len(attended)==0: continue
+            this_lbl  = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
+            other_lbl = {"EN":"Other location","FR":"Autre lieu","ES":"Otro lugar"}[lang]
+            for loc_label in [this_lbl, other_lbl]:
+                loc_rows.append({"Facility":fac_label(gid),"Label":loc_label,
+                                 "Pct":round((attended["prenatal_location"]==loc_label).sum()/len(attended)*100,1)})
+        if loc_rows:
+            c2.plotly_chart(fac_bar(loc_rows,
+                {"EN":"Where (among attendees)","FR":"Lieu (parmi participants)","ES":"Lugar (entre asistentes)"}[lang],
+                height=280, pct_range=105), use_container_width=True)
+
+        # Chart 3: detailed breakdown by type
+        det_rows = []
+        for gid in group_ids:
+            fac_df = group_filter(gid); n=len(fac_df)
+            if n==0 or "prenatal_detail" not in fac_df.columns: continue
+            for det_lbl in fac_df["prenatal_detail"].dropna().unique():
+                det_rows.append({"Facility":fac_label(gid),"Label":det_lbl,
+                                 "Pct":round((fac_df["prenatal_detail"]==det_lbl).sum()/n*100,1)})
+        if det_rows:
+            n_labels = len(set(r["Label"] for r in det_rows))
+            st.plotly_chart(fac_bar(det_rows,
+                {"EN":"Prenatal education — detailed breakdown","FR":"Éducation prénatale — détail","ES":"Educación prenatal — detalle"}[lang],
+                height=max(300, n_labels*40+120), pct_range=105), use_container_width=True)
 
 # ── Staff opinion — Likert scales ─────────────────────────────────────────────
 st.markdown(f'<div class="section-title">{"Quality of Care — Staff Opinion" if lang=="EN" else "Qualité des soins — Likert" if lang=="FR" else "Calidad de Atención — Opinion del personal"}</div>',
