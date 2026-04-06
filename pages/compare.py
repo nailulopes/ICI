@@ -340,10 +340,10 @@ for gid in group_ids:
     prenatal_pct = (fac_df["prenatal_attended"]==yes_lbl).sum()/n*100 \
                    if "prenatal_attended" in fac_df.columns else np.nan
     this_fac_pct = np.nan
-    if "prenatal_location" in fac_df.columns and not np.isnan(prenatal_pct) and prenatal_pct > 0:
+    if "prenatal_here" in fac_df.columns and not np.isnan(prenatal_pct) and prenatal_pct > 0:
         att = fac_df[fac_df["prenatal_attended"]==yes_lbl]
         this_lbl = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
-        this_fac_pct = (att["prenatal_location"]==this_lbl).sum()/len(att)*100 if len(att)>0 else np.nan
+        this_fac_pct = (att["prenatal_here"]==this_lbl).sum()/len(att)*100 if len(att)>0 else np.nan
 
     demo_rows.append({
         {"EN":"Facility","FR":"Établissement","ES":"Establecimiento"}[lang]: lbl,
@@ -513,14 +513,14 @@ if "prenatal_attended" in df.columns and df["prenatal_attended"].notna().any():
         loc_rows = []
         for gid in group_ids:
             fac_df = group_filter(gid); n=len(fac_df)
-            if n==0 or "prenatal_location" not in fac_df.columns: continue
+            if n==0 or "prenatal_here" not in fac_df.columns: continue
             attended = fac_df[fac_df["prenatal_attended"]==yes_lbl]
             if len(attended)==0: continue
             this_lbl  = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
             other_lbl = {"EN":"Other location","FR":"Autre lieu","ES":"Otro lugar"}[lang]
             for loc_label in [this_lbl, other_lbl]:
                 loc_rows.append({"Facility":fac_label(gid),"Label":loc_label,
-                                 "Pct":round((attended["prenatal_location"]==loc_label).sum()/len(attended)*100,1)})
+                                 "Pct":round((attended["prenatal_here"]==loc_label).sum()/len(attended)*100,1)})
         if loc_rows:
             c2.plotly_chart(fac_bar(loc_rows,
                 {"EN":"Where (among attendees)","FR":"Lieu (parmi participants)","ES":"Lugar (entre asistentes)"}[lang],
