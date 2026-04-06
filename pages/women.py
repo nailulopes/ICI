@@ -177,7 +177,8 @@ if "prenatal_attended" in df.columns and df["prenatal_attended"].notna().any():
     st.markdown(f'<div class="section-title">{"Prenatal Education" if lang=="EN" else "Éducation prénatale" if lang=="FR" else "Educación prenatal"}</div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
 
-    # Chart 1: Attended yes/no
+    # Chart 1: Attended Yes / No
+    yes_lbl = {"EN":"Yes","FR":"Oui","ES":"Sí"}[lang]
     att = df["prenatal_attended"].dropna().value_counts().reset_index(); att.columns=["r","n"]
     att["text"] = att.apply(lambda x: f"{x['n']} ({x['n']/total_n*100:.1f}%)", axis=1)
     fig = px.bar(att, x="n", y="r", orientation="h",
@@ -187,8 +188,8 @@ if "prenatal_attended" in df.columns and df["prenatal_attended"].notna().any():
     fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
     c1.plotly_chart(fig, use_container_width=True)
 
-    # Chart 2: Location breakdown (among those who attended)
-    if "prenatal_detail" in df.columns:
+    # Chart 2: Where — detailed breakdown (all respondents)
+    if "prenatal_detail" in df.columns and df["prenatal_detail"].notna().any():
         det = df["prenatal_detail"].dropna().value_counts().reset_index(); det.columns=["r","n"]
         n_answered = det["n"].sum()
         det["text"] = det.apply(lambda x: f"{x['n']} ({x['n']/n_answered*100:.1f}%)", axis=1)
@@ -200,11 +201,11 @@ if "prenatal_attended" in df.columns and df["prenatal_attended"].notna().any():
         fig2.update_xaxes(gridcolor="#eeeeee"); fig2.update_yaxes(showgrid=False)
         c2.plotly_chart(fig2, use_container_width=True)
 
-    # Chart 3: Location of facility vs other (among those who attended)
-    if "prenatal_location" in df.columns:
-        attended_df = df[df["prenatal_attended"] == {"EN":"Yes","FR":"Oui","ES":"Sí"}[lang]]
-        if len(attended_df) > 0:
-            loc = attended_df["prenatal_location"].dropna().value_counts().reset_index(); loc.columns=["r","n"]
+    # Chart 3: This facility vs elsewhere (among those who attended)
+    if "prenatal_here" in df.columns:
+        attended_df = df[df["prenatal_attended"] == yes_lbl]
+        if len(attended_df) > 0 and attended_df["prenatal_here"].notna().any():
+            loc = attended_df["prenatal_here"].dropna().value_counts().reset_index(); loc.columns=["r","n"]
             n_att = loc["n"].sum()
             loc["text"] = loc.apply(lambda x: f"{x['n']} ({x['n']/n_att*100:.1f}%)", axis=1)
             fig3 = px.bar(loc, x="n", y="r", orientation="h",
