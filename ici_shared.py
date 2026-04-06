@@ -536,17 +536,24 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
 
     # ── Prenatal education ────────────────────────────────────────────────────
     if "child_ed" in df.columns:
-        numeric = to_int(df["child_ed"])
+        raw_series = df["child_ed"]
+        numeric = to_int(raw_series)
         yes_lbl  = {"EN":"Yes",  "FR":"Oui", "ES":"Sí"}[lang]
         no_lbl   = {"EN":"No",   "FR":"Non", "ES":"No"}[lang]
         here_lbl = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
         else_lbl = {"EN":"Elsewhere","FR":"Ailleurs","ES":"En otro lugar"}[lang]
 
-        no_strings   = {"none","no","no he recibido educación prenatal.","aucune","non","did not attend prenatal education"}
-        here_strings = {"hospital","birth center","clsc","this facility","cet établissement","esta institución","delivering"}
+        no_strings   = {"none","no","no he recibido educación prenatal.","aucune","non",
+                        "did not attend prenatal education"}
+        here_strings = {"hospital","birth center","clsc","this facility",
+                        "cet établissement","esta institución","delivering"}
 
-        if numeric.notna().any():
-            # Numeric path (Cartagena-style)
+        # Detect numeric path: original values must actually be integers (0-9), not text
+        original_non_null = raw_series.dropna().astype(str).str.strip()
+        is_numeric_form   = original_non_null.str.match(r'^\d+$').all() and len(original_non_null) > 0
+
+        if is_numeric_form:
+            # Numeric path (Cartagena-style: integer codes)
             def _attended_num(v):
                 if pd.isna(v): return None
                 return no_lbl if int(v) == 0 else yes_lbl
@@ -559,8 +566,8 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
             df["prenatal_detail"]   = numeric.map(CHILD_ED_MAP[lang])
             df["prenatal_here"]     = numeric.apply(_here_num)
         else:
-            # Text path (Canada-style: raw string values)
-            raw = df["child_ed"].astype(str).str.strip()
+            # Text path (Canada-style: raw string labels)
+            raw = raw_series.astype(str).str.strip()
 
             def _attended_txt(val):
                 if val in ("nan","None",""): return None
@@ -569,20 +576,19 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
             def _detail_txt(val):
                 if val in ("nan","None",""): return None
                 s = val.lower()
-                if s in no_strings:                         return CHILD_ED_MAP[lang][0]
-                if any(h in s for h in here_strings):       return CHILD_ED_MAP[lang][1]
-                if "public" in s or "government" in s:      return CHILD_ED_MAP[lang][2]
-                if "lamaze" in s:                           return CHILD_ED_MAP[lang][3]
-                if "midwife" in s or "doula" in s:          return CHILD_ED_MAP[lang][4]
-                if "icce" in s:                             return CHILD_ED_MAP[lang][5]
+                if s in no_strings:                    return CHILD_ED_MAP[lang][0]
+                if any(h in s for h in here_strings):  return CHILD_ED_MAP[lang][1]
+                if "public" in s or "government" in s: return CHILD_ED_MAP[lang][2]
+                if "lamaze" in s:                      return CHILD_ED_MAP[lang][3]
+                if "midwife" in s or "doula" in s:     return CHILD_ED_MAP[lang][4]
+                if "icce" in s:                        return CHILD_ED_MAP[lang][5]
                 return CHILD_ED_MAP[lang][6]
 
             def _here_txt(val):
                 if val in ("nan","None",""): return None
                 s = val.lower()
-                if s in no_strings:                         return None
-                if any(h in s for h in here_strings):       return here_lbl
-                return else_lbl
+                if s in no_strings:                    return None
+                return here_lbl if any(h in s for h in here_strings) else else_lbl
 
             df["prenatal_attended"] = raw.apply(_attended_txt)
             df["prenatal_detail"]   = raw.apply(_detail_txt)
