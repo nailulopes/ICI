@@ -548,9 +548,15 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
         here_strings = {"hospital","birth center","clsc","this facility",
                         "cet établissement","esta institución","delivering"}
 
-        # Detect numeric path: original values must actually be integers (0-9), not text
+        # Detect path: if ANY non-null value is a non-numeric string → text path (Canada)
+        # Otherwise → numeric path (Cartagena)
         original_non_null = raw_series.dropna().astype(str).str.strip()
-        is_numeric_form   = original_non_null.str.match(r'^\d+$').all() and len(original_non_null) > 0
+        original_non_null = original_non_null[original_non_null != ""]
+        is_numeric_form = (
+            len(original_non_null) > 0 and
+            original_non_null.str.match(r'^\d+$').any() and
+            not original_non_null.str.match(r'^[A-Za-z]').any()
+        )
 
         if is_numeric_form:
             # Numeric path (Cartagena-style: integer codes)
