@@ -285,9 +285,12 @@ RISK_MAP = {
 # 0=None, 1=At this facility, 2=Public clinic, 3=Private class, 6=Other
 # Canada form uses free-text multiselect — handled separately in prep_women
 CHILD_ED_MAP = {
-    "EN": {0:"None", 1:"At this facility", 2:"Public clinic", 3:"Private class/other", 6:"Other"},
-    "FR": {0:"Aucune", 1:"Dans cet établissement", 2:"Clinique publique", 3:"Cours privé/autre", 6:"Autre"},
-    "ES": {0:"Ninguna", 1:"En este centro", 2:"Centro público", 3:"Clase privada/otro", 6:"Otro"},
+    "EN": {0:"None (did not attend)", 1:"At this facility", 2:"Public/government clinic",
+           3:"Lamaze class", 4:"Home midwife/doula", 5:"ICCE class", 6:"Other private class/clinic"},
+    "FR": {0:"Aucune (n'a pas participé)", 1:"Dans cet établissement", 2:"Clinique publique",
+           3:"Cours Lamaze", 4:"Sage-femme à domicile", 5:"Cours ICCE", 6:"Autre cours/clinique privé"},
+    "ES": {0:"Ninguna (no asistió)", 1:"En esta institución", 2:"Centro de salud pública",
+           3:"Clase Lamaze", 4:"Comadrona/doula a domicilio", 5:"Clase ICCE", 6:"Otra clase/clínica privada"},
 }
 LIKERT5_MAP = {
     "EN": {5:"Always", 4:"Most of the time", 3:"Sometimes", 2:"Rarely", 1:"Never", 0:"N/A"},
@@ -532,50 +535,58 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
         df.loc[df["no_deliveries"] > 10, "no_deliveries"] = pd.NA
 
     # ── Prenatal education ────────────────────────────────────────────────────
-    # Two possible source fields:
-    # - child_ed: numeric code (Cartagena). 0=None, 1=this facility, 2=public, 3=private, 6=other
-    # - child_ed (Canada): free-text multiselect separated by spaces/newlines
-    #   e.g. "At the hospital/birth center where I delivered"
-    # We derive two harmonised booleans usable across facilities:
-    #   prenatal_attended: did the woman attend ANY prenatal class? (True/False)
-    #   prenatal_here:     was it at THIS facility?                 (True/False/None)
-
-    no_labels    = {"None", "No", "No he recibido educación prenatal.", "none", "no"}
-    here_strings = {"hospital", "birth center", "clsc", "este centro", "cet établissement",
-                    "this facility", "delivering"}
-
     if "child_ed" in df.columns:
-        raw = df["child_ed"]
-        # Try numeric first (Cartagena)
-        numeric = to_int(raw)
-        if numeric.notna().sum() > 0:
-            df["prenatal_attended"] = numeric.map(lambda v: False if v == 0 else (True if pd.notna(v) else None))
-            df["prenatal_here"]     = numeric.map(lambda v: True if v == 1 else (False if pd.notna(v) and v != 0 else None))
-            df["child_ed_label"]    = numeric.map(CHILD_ED_MAP[lang])
+        numeric = to_int(df["child_ed"])
+        yes_lbl  = {"EN":"Yes",  "FR":"Oui", "ES":"Sí"}[lang]
+        no_lbl   = {"EN":"No",   "FR":"Non", "ES":"No"}[lang]
+        here_lbl = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
+        else_lbl = {"EN":"Elsewhere","FR":"Ailleurs","ES":"En otro lugar"}[lang]
+
+        no_strings   = {"none","no","no he recibido educación prenatal.","aucune","non","did not attend prenatal education"}
+        here_strings = {"hospital","birth center","clsc","this facility","cet établissement","esta institución","delivering"}
+
+        if numeric.notna().any():
+            # Numeric path (Cartagena-style)
+            def _attended_num(v):
+                if pd.isna(v): return None
+                return no_lbl if int(v) == 0 else yes_lbl
+
+            def _here_num(v):
+                if pd.isna(v) or int(v) == 0: return None
+                return here_lbl if int(v) == 1 else else_lbl
+
+            df["prenatal_attended"] = numeric.apply(_attended_num)
+            df["prenatal_detail"]   = numeric.map(CHILD_ED_MAP[lang])
+            df["prenatal_here"]     = numeric.apply(_here_num)
         else:
-            # Text multiselect (Canada) — each cell may contain one or more choice labels
-            def _attended(val):
-                if pd.isna(val): return None
-                s = str(val).strip()
-                return s.lower() not in {v.lower() for v in no_labels}
-            def _here(val):
-                if pd.isna(val): return None
-                s = str(val).lower()
-                return any(h in s for h in here_strings)
-            df["prenatal_attended"] = raw.apply(_attended)
-            df["prenatal_here"]     = raw.apply(_here)
-            # Summarise text into short label
-            def _label(val):
-                if pd.isna(val): return None
-                s = str(val).strip()
-                if s.lower() in {v.lower() for v in no_labels}:
-                    return CHILD_ED_MAP[lang][0]   # "None"
-                if any(h in s.lower() for h in here_strings):
-                    return CHILD_ED_MAP[lang][1]   # "At this facility"
-                if "public" in s.lower() or "government" in s.lower() or "gouvernement" in s.lower():
-                    return CHILD_ED_MAP[lang][2]   # "Public clinic"
-                return CHILD_ED_MAP[lang][3]       # "Private class/other"
-            df["child_ed_label"] = raw.apply(_label)
+            # Text path (Canada-style: raw string values)
+            raw = df["child_ed"].astype(str).str.strip()
+
+            def _attended_txt(val):
+                if val in ("nan","None",""): return None
+                return no_lbl if val.lower() in no_strings else yes_lbl
+
+            def _detail_txt(val):
+                if val in ("nan","None",""): return None
+                s = val.lower()
+                if s in no_strings:                         return CHILD_ED_MAP[lang][0]
+                if any(h in s for h in here_strings):       return CHILD_ED_MAP[lang][1]
+                if "public" in s or "government" in s:      return CHILD_ED_MAP[lang][2]
+                if "lamaze" in s:                           return CHILD_ED_MAP[lang][3]
+                if "midwife" in s or "doula" in s:          return CHILD_ED_MAP[lang][4]
+                if "icce" in s:                             return CHILD_ED_MAP[lang][5]
+                return CHILD_ED_MAP[lang][6]
+
+            def _here_txt(val):
+                if val in ("nan","None",""): return None
+                s = val.lower()
+                if s in no_strings:                         return None
+                if any(h in s for h in here_strings):       return here_lbl
+                return else_lbl
+
+            df["prenatal_attended"] = raw.apply(_attended_txt)
+            df["prenatal_detail"]   = raw.apply(_detail_txt)
+            df["prenatal_here"]     = raw.apply(_here_txt)
 
     return df
 
