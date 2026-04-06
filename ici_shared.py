@@ -548,57 +548,58 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
         here_strings = {"hospital","birth center","clsc","this facility",
                         "cet établissement","esta institución","delivering"}
 
-        # Detect path: if ANY non-null value is a non-numeric string → text path (Canada)
-        # Otherwise → numeric path (Cartagena)
-        original_non_null = raw_series.dropna().astype(str).str.strip()
-        original_non_null = original_non_null[original_non_null != ""]
-        is_numeric_form = (
-            len(original_non_null) > 0 and
-            original_non_null.str.match(r'^\d+$').any() and
-            not original_non_null.str.match(r'^[A-Za-z]').any()
-        )
+        # Process each value independently — handles int, numeric string, or text label
+        yes_lbl  = {"EN":"Yes",  "FR":"Oui", "ES":"Sí"}[lang]
+        no_lbl   = {"EN":"No",   "FR":"Non", "ES":"No"}[lang]
+        here_lbl = {"EN":"At this facility","FR":"Dans cet établissement","ES":"En esta institución"}[lang]
+        else_lbl = {"EN":"Elsewhere","FR":"Ailleurs","ES":"En otro lugar"}[lang]
 
-        if is_numeric_form:
-            # Numeric path (Cartagena-style: integer codes)
-            def _attended_num(v):
-                if pd.isna(v): return None
-                return no_lbl if int(v) == 0 else yes_lbl
+        no_strings   = {"none","no","no he recibido educación prenatal.","aucune","non",
+                        "did not attend prenatal education"}
+        here_strings = {"hospital","birth center","clsc","this facility",
+                        "cet établissement","esta institución","delivering"}
 
-            def _here_num(v):
-                if pd.isna(v) or int(v) == 0: return None
-                return here_lbl if int(v) == 1 else else_lbl
+        _num_map = CHILD_ED_MAP[lang]  # int key → label
 
-            df["prenatal_attended"] = numeric.apply(_attended_num)
-            df["prenatal_detail"]   = numeric.map(CHILD_ED_MAP[lang])
-            df["prenatal_here"]     = numeric.apply(_here_num)
-        else:
-            # Text path (Canada-style: raw string labels)
-            raw = raw_series.astype(str).str.strip()
+        def _parse(val):
+            """Return (attended, detail, here) for one raw value."""
+            if val is None or (isinstance(val, float) and pd.isna(val)):
+                return None, None, None
+            # Try numeric interpretation first
+            try:
+                n = int(float(str(val).strip()))
+                attended = no_lbl if n == 0 else yes_lbl
+                detail   = _num_map.get(n)
+                here     = (here_lbl if n == 1 else else_lbl) if n != 0 else None
+                return attended, detail, here
+            except (ValueError, TypeError):
+                pass
+            # Text interpretation (Canada-style)
+            s = str(val).strip()
+            if s in ("nan", "None", ""):
+                return None, None, None
+            sl = s.lower()
+            if sl in no_strings:
+                return no_lbl, _num_map[0], None
+            attended = yes_lbl
+            if any(h in sl for h in here_strings):
+                detail, here = _num_map[1], here_lbl
+            elif "public" in sl or "government" in sl:
+                detail, here = _num_map[2], else_lbl
+            elif "lamaze" in sl:
+                detail, here = _num_map[3], else_lbl
+            elif "midwife" in sl or "doula" in sl:
+                detail, here = _num_map[4], else_lbl
+            elif "icce" in sl:
+                detail, here = _num_map[5], else_lbl
+            else:
+                detail, here = _num_map[6], else_lbl
+            return attended, detail, here
 
-            def _attended_txt(val):
-                if val in ("nan","None",""): return None
-                return no_lbl if val.lower() in no_strings else yes_lbl
-
-            def _detail_txt(val):
-                if val in ("nan","None",""): return None
-                s = val.lower()
-                if s in no_strings:                    return CHILD_ED_MAP[lang][0]
-                if any(h in s for h in here_strings):  return CHILD_ED_MAP[lang][1]
-                if "public" in s or "government" in s: return CHILD_ED_MAP[lang][2]
-                if "lamaze" in s:                      return CHILD_ED_MAP[lang][3]
-                if "midwife" in s or "doula" in s:     return CHILD_ED_MAP[lang][4]
-                if "icce" in s:                        return CHILD_ED_MAP[lang][5]
-                return CHILD_ED_MAP[lang][6]
-
-            def _here_txt(val):
-                if val in ("nan","None",""): return None
-                s = val.lower()
-                if s in no_strings:                    return None
-                return here_lbl if any(h in s for h in here_strings) else else_lbl
-
-            df["prenatal_attended"] = raw.apply(_attended_txt)
-            df["prenatal_detail"]   = raw.apply(_detail_txt)
-            df["prenatal_here"]     = raw.apply(_here_txt)
+        parsed = df["child_ed"].apply(_parse)
+        df["prenatal_attended"] = parsed.apply(lambda x: x[0])
+        df["prenatal_detail"]   = parsed.apply(lambda x: x[1])
+        df["prenatal_here"]     = parsed.apply(lambda x: x[2])
 
     return df
 
