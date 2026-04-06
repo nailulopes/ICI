@@ -281,6 +281,14 @@ RISK_MAP = {
     "FR": {1:"Oui", 2:"Non", 0:"Inconnu"},
     "ES": {1:"Sí", 2:"No", 0:"No sé"},
 }
+# Prenatal education — numeric codes (Cartagena form)
+# 0=None, 1=At this facility, 2=Public clinic, 3=Private class, 6=Other
+# Canada form uses free-text multiselect — handled separately in prep_women
+CHILD_ED_MAP = {
+    "EN": {0:"None", 1:"At this facility", 2:"Public clinic", 3:"Private class/other", 6:"Other"},
+    "FR": {0:"Aucune", 1:"Dans cet établissement", 2:"Clinique publique", 3:"Cours privé/autre", 6:"Autre"},
+    "ES": {0:"Ninguna", 1:"En este centro", 2:"Centro público", 3:"Clase privada/otro", 6:"Otro"},
+}
 LIKERT5_MAP = {
     "EN": {5:"Always", 4:"Most of the time", 3:"Sometimes", 2:"Rarely", 1:"Never", 0:"N/A"},
     "FR": {5:"Toujours", 4:"La plupart du temps", 3:"Quelquefois", 2:"Rarement", 1:"Jamais", 0:"N/A"},
@@ -522,6 +530,53 @@ def prep_women(df: pd.DataFrame, lang: str) -> pd.DataFrame:
     if "no_deliveries" in df.columns:
         df["no_deliveries"] = to_int(df["no_deliveries"])
         df.loc[df["no_deliveries"] > 10, "no_deliveries"] = pd.NA
+
+    # ── Prenatal education ────────────────────────────────────────────────────
+    # Two possible source fields:
+    # - child_ed: numeric code (Cartagena). 0=None, 1=this facility, 2=public, 3=private, 6=other
+    # - child_ed (Canada): free-text multiselect separated by spaces/newlines
+    #   e.g. "At the hospital/birth center where I delivered"
+    # We derive two harmonised booleans usable across facilities:
+    #   prenatal_attended: did the woman attend ANY prenatal class? (True/False)
+    #   prenatal_here:     was it at THIS facility?                 (True/False/None)
+
+    no_labels    = {"None", "No", "No he recibido educación prenatal.", "none", "no"}
+    here_strings = {"hospital", "birth center", "clsc", "este centro", "cet établissement",
+                    "this facility", "delivering"}
+
+    if "child_ed" in df.columns:
+        raw = df["child_ed"]
+        # Try numeric first (Cartagena)
+        numeric = to_int(raw)
+        if numeric.notna().sum() > 0:
+            df["prenatal_attended"] = numeric.map(lambda v: False if v == 0 else (True if pd.notna(v) else None))
+            df["prenatal_here"]     = numeric.map(lambda v: True if v == 1 else (False if pd.notna(v) and v != 0 else None))
+            df["child_ed_label"]    = numeric.map(CHILD_ED_MAP[lang])
+        else:
+            # Text multiselect (Canada) — each cell may contain one or more choice labels
+            def _attended(val):
+                if pd.isna(val): return None
+                s = str(val).strip()
+                return s.lower() not in {v.lower() for v in no_labels}
+            def _here(val):
+                if pd.isna(val): return None
+                s = str(val).lower()
+                return any(h in s for h in here_strings)
+            df["prenatal_attended"] = raw.apply(_attended)
+            df["prenatal_here"]     = raw.apply(_here)
+            # Summarise text into short label
+            def _label(val):
+                if pd.isna(val): return None
+                s = str(val).strip()
+                if s.lower() in {v.lower() for v in no_labels}:
+                    return CHILD_ED_MAP[lang][0]   # "None"
+                if any(h in s.lower() for h in here_strings):
+                    return CHILD_ED_MAP[lang][1]   # "At this facility"
+                if "public" in s.lower() or "government" in s.lower() or "gouvernement" in s.lower():
+                    return CHILD_ED_MAP[lang][2]   # "Public clinic"
+                return CHILD_ED_MAP[lang][3]       # "Private class/other"
+            df["child_ed_label"] = raw.apply(_label)
+
     return df
 
 
