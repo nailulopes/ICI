@@ -24,10 +24,10 @@ if not fac_ids:
     st.error("Not logged in."); st.stop()
 
 lang = lang_selector("lang_c")
-sidebar_facility_header({"EN": "Companion Experience", "FR": "Expérience des acompagnants", "ES": "Experiencia del Acompañante"}[lang])
+sidebar_facility_header({"EN": "Companion Experience", "FR": "Expérience des accompagnants", "ES": "Experiencia del Acompañante"}[lang])
 
 L = {"EN":{"loading":"Loading…","no_data":"No companion data available."},
-     "FR":{"loading":"Chargement…","no_data":"Aucune donnée acompagnant."},
+     "FR":{"loading":"Chargement…","no_data":"Aucune donnée accompagnant."},
      "ES":{"loading":"Cargando…","no_data":"Sin datos de acompañantes."}}[lang]
 
 with st.spinner(L["loading"]):
@@ -74,8 +74,8 @@ if "age" in df.columns and df["age"].notna().sum()>0:
 else:
     age_disp = "–"
 
-titles = {"EN":"Companion Experience Dashboard","FR":"Expérience des Acompagnants","ES":"Experiencia del Acompañante"}
-captions = {"EN":"ICI — Companion Questionnaire","FR":"ICI — Questionnaire acompagnant","ES":"ICI — Cuestionario del Acompañante"}
+titles = {"EN":"Companion Experience Dashboard","FR":"Expérience des Accompagnants","ES":"Experiencia del Acompañante"}
+captions = {"EN":"ICI — Companion Questionnaire","FR":"ICI — Questionnaire accompagnant","ES":"ICI — Cuestionario del Acompañante"}
 kpi = {"EN":{"total":"Total responses","pos":"rated care Good/Very good","lab":"present during labour",
              "del":"present during birth","conf":"felt confident & prepared","age":"age (mean, range)"},
        "FR":{"total":"Total réponses","pos":"soins Bons/Très bons","lab":"présents lors du travail",
@@ -113,7 +113,7 @@ if "_submission_time" in df.columns and df["_submission_time"].notna().any():
     st.plotly_chart(fig, use_container_width=True)
 
 # ── Profile ───────────────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{"Companion Profile" if lang=="EN" else "Profil des acompagnants" if lang=="FR" else "Perfil del Acompañante"}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">{"Companion Profile" if lang=="EN" else "Profil des accompagnants" if lang=="FR" else "Perfil del Acompañante"}</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
 for col_lbl, title, color, container in [
     ("comp_detail_label", {"EN":"Relationship","FR":"Relation","ES":"Relación"}[lang],         BLUISH, c1),
@@ -171,7 +171,7 @@ c1, c2, c3 = st.columns(3)
 for col_lbl, title, color, container in [
     ("decisions_label", {"EN":"Included in decisions","FR":"Inclus dans décisions","ES":"Incluido en decisiones"}[lang], TEAL,   c1),
     ("values_label",    {"EN":"Beliefs respected","FR":"Croyances respectées","ES":"Creencias respetadas"}[lang],        BLUISH, c2),
-    ("comp_001_label",  {"EN":"Felt respected as companion","FR":"Respecté comme acompagnant","ES":"Respetado como acompañante"}[lang], SKY, c3),
+    ("comp_001_label",  {"EN":"Felt respected as companion","FR":"Respecté comme accompagnant","ES":"Respetado como acompañante"}[lang], SKY, c3),
 ]:
     if col_lbl in df.columns:
         vc = df[col_lbl].dropna().value_counts().reset_index(); vc.columns=["r","n"]
@@ -251,7 +251,7 @@ if "expect_label" in df.columns and "satisfaction_label" in df.columns:
         container.plotly_chart(fig, use_container_width=True)
 
 # ── Emotions ──────────────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-title">{"Companion Emotions" if lang=="EN" else "Émotions du acompagnant" if lang=="FR" else "Emociones del Acompañante"}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">{"Companion Emotions" if lang=="EN" else "Émotions de l'accompagnant" if lang=="FR" else "Emociones del Acompañante"}</div>', unsafe_allow_html=True)
 if "emotion_label" in df.columns:
     pos_set = POSITIVE_EMO_C.get(lang, POSITIVE_EMO_C["EN"])
     emo_vc = df["emotion_label"].dropna().value_counts().reset_index(); emo_vc.columns=["Emotion","n"]
@@ -273,7 +273,7 @@ if "emotion_label" in df.columns:
     st.plotly_chart(fig, use_container_width=True)
 
 # ── Paired data (companion ↔ women, linked by 'id') ──────────────────────────
-st.markdown(f'<div class="section-title">{"Paired Data — Companion & Mother" if lang=="EN" else "Données croisées — Acompagnant & Mère" if lang=="FR" else "Datos cruzados — Acompañante & Madre"}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">{"Paired Data — Companion & Mother" if lang=="EN" else "Données croisées — Accompagnant & Mère" if lang=="FR" else "Datos cruzados — Acompañante & Madre"}</div>', unsafe_allow_html=True)
 
 if "id" in df.columns and df["id"].notna().any():
     with st.spinner({"EN":"Loading women's data for matching…","FR":"Chargement données femmes…","ES":"Cargando datos de mujeres…"}[lang]):
@@ -316,10 +316,10 @@ if "id" in df.columns and df["id"].notna().any():
                      "ES":"No se encontraron pares para el período/establecimiento seleccionado."}[lang])
         else:
             st.caption({"EN":f"{n_paired} matched pairs (companion + mother, same ID).",
-                        "FR":f"{n_paired} paires identifiées (acompagnant + mère, même ID).",
+                        "FR":f"{n_paired} paires identifiées (accompagnant + mère, même ID).",
                         "ES":f"{n_paired} pares identificados (acompañante + madre, mismo ID)."}[lang])
 
-            lbl_c = {"EN":"Companion","FR":"Acompagnant","ES":"Acompañante"}[lang]
+            lbl_c = {"EN":"Companion","FR":"Accompagnant","ES":"Acompañante"}[lang]
             lbl_w = {"EN":"Mother","FR":"Mère","ES":"Madre"}[lang]
 
             def pct(series, vals):
