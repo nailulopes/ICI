@@ -45,13 +45,6 @@ def get_facility_ids():
         return [role]
     return []
 
-def get_facility_label(fac_id, admin_sees_real=False):
-    """Return display name — admin sees real names, others see generic."""
-    role = get_role()
-    if role == "admin" or admin_sees_real:
-        return FACILITIES[fac_id]["display_name"]
-    return FACILITIES[fac_id]["display_name"]  # already generic
-
 # ── Palette ───────────────────────────────────────────────────────────────────
 TEAL      = "#009E73"
 ORANGE    = "#E69F00"
@@ -477,7 +470,7 @@ LIKERT_QS_C = {
            "comp_001":"Felt respected as companion","coop":"Staff coordinated"},
     "FR": {"introduction":"Personnel présenté","spoke":"Personnel clair",
            "privacy":"Intimité protégée","respect":"Femme respectée",
-           "comp_001":"Respecté comme acompagnant","coop":"Personnel coordonné"},
+           "comp_001":"Respecté comme accompagnant","coop":"Personnel coordonné"},
     "ES": {"introduction":"Personal se presentó","spoke":"Personal habló claro",
            "privacy":"Intimidad protegida","respect":"Mujer respetada",
            "comp_001":"Respetado como acompañante","coop":"Personal coordinado"},
