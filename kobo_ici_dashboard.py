@@ -19,11 +19,6 @@ except Exception:
     st.error("⚠ Secrets not configured. Add facility_a_password, facility_b_password, admin_password to Streamlit Secrets.")
     st.stop()
 
-FACILITY_NAMES = {
-    "facility_a": "Facility A",
-    "facility_b": "Facility B",
-}
-
 # ── Login gate ────────────────────────────────────────────────────────────────
 if "role" not in st.session_state:
     st.session_state.role = None
