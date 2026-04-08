@@ -296,7 +296,62 @@ for col_lbl, title, color, container in [
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
-# ── Satisfaction ──────────────────────────────────────────────────────────────
+# ── Care Journey — Sankey ─────────────────────────────────────────────────────
+st.markdown(f'<div class="section-title">{"Care Journey: Risk → Birth Method → Skin-to-Skin" if lang=="EN" else "Parcours : Risque → Accouchement → Peau à peau" if lang=="FR" else "Trayecto: Riesgo → Parto → Piel con piel"}</div>', unsafe_allow_html=True)
+if "risk" in df.columns and "method" in df.columns and "skin_int" in df.columns:
+    risk_lbl  = {1: {"EN":"High-risk","FR":"Grossesse à risque","ES":"Alto riesgo"}[lang],
+                 2: {"EN":"Low-risk", "FR":"Grossesse normale", "ES":"Bajo riesgo"}[lang]}
+    method_lbl = {k: METHOD_MAP[lang][k] for k in [1,2,3,4]}
+    skin_lbl  = {1: {"EN":"✓ Immediate skin-to-skin","FR":"✓ Peau à peau immédiat","ES":"✓ Piel con piel inmediato"}[lang],
+                 0: {"EN":"✗ Not immediate / No",    "FR":"✗ Pas immédiat / Non",  "ES":"✗ No inmediato / No"}[lang]}
+
+    fdf = df[df["risk"].isin([1,2]) & df["method"].isin([1,2,3,4])].copy()
+    fdf["skin_bin"] = (fdf["skin_int"] == 1).astype(int)
+    total_n_sk = len(fdf)
+
+    if total_n_sk > 0:
+        all_nodes   = [risk_lbl[1], risk_lbl[2]] + [method_lbl[k] for k in [1,2,3,4]] + [skin_lbl[1], skin_lbl[0]]
+        R, M, S     = 0, 2, 6
+        sources, targets, values_sk, colors_sk, customdata = [], [], [], [], []
+
+        for r in [1,2]:
+            for m in [1,2,3,4]:
+                n = len(fdf[(fdf["risk"]==r) & (fdf["method"]==m)])
+                if n == 0: continue
+                sources.append(R+(r-1)); targets.append(M+[1,2,3,4].index(m))
+                values_sk.append(n); customdata.append(f"{n/total_n_sk*100:.1f}%")
+                colors_sk.append("rgba(213,94,0,0.20)" if r==1 else "rgba(0,158,115,0.20)")
+
+        for m in [1,2,3,4]:
+            for s in [1,0]:
+                n = len(fdf[(fdf["method"]==m) & (fdf["skin_bin"]==s)])
+                if n == 0: continue
+                sources.append(M+[1,2,3,4].index(m)); targets.append(S+(0 if s==1 else 1))
+                values_sk.append(n); customdata.append(f"{n/total_n_sk*100:.1f}%")
+                colors_sk.append("rgba(0,158,115,0.20)" if s==1 else "rgba(213,94,0,0.20)")
+
+        node_colors = [VERMILION, TEAL, BLUISH, SKY, ORANGE, PINK, TEAL, VERMILION]
+        fig = go.Figure(go.Sankey(
+            arrangement="snap",
+            node=dict(pad=20, thickness=24, line=dict(color="white", width=0.5),
+                      label=all_nodes, color=node_colors,
+                      hovertemplate="%{label}<br>%{value}<extra></extra>"),
+            link=dict(source=sources, target=targets, value=values_sk,
+                      color=colors_sk, customdata=customdata,
+                      hovertemplate="%{source.label} → %{target.label}<br>%{value} (%{customdata})<extra></extra>")
+        ))
+        fig.update_traces(textfont=dict(size=12, family="DM Sans, sans-serif", color="#1a1a1a"))
+        fig.update_layout(
+            title=dict(text={"EN":"Care Journey: Risk Profile → Birth Method → Skin-to-Skin Contact",
+                              "FR":"Parcours de soin : Profil de risque → Mode d'accouchement → Peau à peau",
+                              "ES":"Trayecto: Perfil de riesgo → Vía de parto → Piel con piel"}[lang],
+                       font=dict(size=13, family="DM Serif Display, serif", color="#1a1a1a"), x=0, xanchor="left"),
+            margin=dict(t=64,b=16,l=8,r=8), height=440,
+            paper_bgcolor="white", font=dict(family="DM Sans, sans-serif", size=11)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+
 st.markdown(f'<div class="section-title">{"Satisfaction" if lang=="EN" else "Satisfaction" if lang=="FR" else "Satisfacción"}</div>', unsafe_allow_html=True)
 if "expect_label" in df.columns and "satisfaction_label" in df.columns:
     c1, c2 = st.columns(2)
@@ -343,7 +398,61 @@ if "emotion" in df.columns:
         fig.update_xaxes(gridcolor="#eeeeee"); fig.update_yaxes(showgrid=False)
         container.plotly_chart(fig, use_container_width=True)
 
-# ── Discharge info ────────────────────────────────────────────────────────────
+# ── Emotional experience by birth method — Treemap ───────────────────────────
+if "method_label" in df.columns and "method" in df.columns and "emotion" in df.columns:
+    pos_keys = [1,4,6,7,9,11]
+    neg_keys = [2,3,5,8,10,12]
+    pos_lbl  = {"EN":"Positive emotions","FR":"Émotions positives","ES":"Emociones positivas"}[lang]
+    neg_lbl  = {"EN":"Negative emotions","FR":"Émotions négatives","ES":"Emociones negativas"}[lang]
+    root_lbl = {"EN":"All births","FR":"Tous accouchements","ES":"Todos los partos"}[lang]
+
+    tm_rows = []
+    for mcode in [1,2,3,4,5]:
+        mlabel = METHOD_MAP[lang].get(mcode)
+        if not mlabel: continue
+        sub = df[(df["method"]==mcode) & df["emotion"].notna()]
+        if len(sub) < 5: continue
+        pos_n = sum(parse_multiselect(sub["emotion"], [k])[k] for k in pos_keys)
+        neg_n = sum(parse_multiselect(sub["emotion"], [k])[k] for k in neg_keys)
+        tm_rows.append({"method":mlabel, "type":pos_lbl, "n":pos_n})
+        tm_rows.append({"method":mlabel, "type":neg_lbl, "n":neg_n})
+
+    if tm_rows:
+        tmdf = pd.DataFrame(tm_rows)
+        method_palette = [BLUISH, TEAL, ORANGE, PINK, SKY]
+        ids, labels, parents, values_tm, colors_tm = ["root"], [root_lbl], [""], [0], ["#eef2f0"]
+
+        for i, m in enumerate(tmdf["method"].unique().tolist()):
+            mid = f"m_{i}"
+            ids.append(mid); labels.append(m); parents.append("root")
+            values_tm.append(int(tmdf[tmdf["method"]==m]["n"].sum()))
+            colors_tm.append(method_palette[i % len(method_palette)])
+            for _, row in tmdf[tmdf["method"]==m].iterrows():
+                lid = f"l_{i}_{row['type']}"
+                ids.append(lid); labels.append(row["type"]); parents.append(mid)
+                values_tm.append(int(row["n"]))
+                colors_tm.append("#a8d8c8" if row["type"]==pos_lbl else "#f0c4b0")
+
+        fig = go.Figure(go.Treemap(
+            ids=ids, labels=labels, parents=parents, values=values_tm,
+            marker=dict(colors=colors_tm, line=dict(width=2, color="white"), cornerradius=5),
+            textinfo="label+percent parent",
+            textfont=dict(size=12, family="DM Sans, sans-serif", color="#2a2a2a"),
+            hovertemplate="<b>%{label}</b><br>%{value}<extra></extra>",
+            branchvalues="remainder",
+        ))
+        fig.update_layout(
+            title=dict(text={"EN":"Emotional Experience by Birth Method",
+                              "FR":"Vécu émotionnel par mode d'accouchement",
+                              "ES":"Experiencia emocional por vía de parto"}[lang],
+                       font=dict(size=13, family="DM Serif Display, serif", color="#1a1a1a"),
+                       x=0, xanchor="left", y=0.98, yanchor="top"),
+            margin=dict(t=44,b=8,l=8,r=8), height=380,
+            paper_bgcolor="white", font=dict(family="DM Sans, sans-serif"), showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+
 st.markdown(f'<div class="section-title">{"Info Before Discharge" if lang=="EN" else "Info avant sortie" if lang=="FR" else "Info antes del alta"}</div>', unsafe_allow_html=True)
 if "info" in df.columns:
     counts = parse_multiselect(df["info"], list(INFO_LABELS_W[lang].keys()))
