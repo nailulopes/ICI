@@ -690,7 +690,7 @@ if mistreat_rows:
 # ── Companion comparison ──────────────────────────────────────────────────────
 comp_fids = [f for f in fids_to_load if FACILITIES[f].get("companion_uid")]
 if comp_fids:
-    st.markdown(f'<div class="section-title">{"Companion Data" if lang=="EN" else "Données acompagnants" if lang=="FR" else "Datos acompañantes"}</div>',
+    st.markdown(f'<div class="section-title">{"Companion Data" if lang=="EN" else "Données accompagnantes" if lang=="FR" else "Datos acompañantes"}</div>',
                 unsafe_allow_html=True)
     with st.spinner("…"):
         raw_c = load_companion(comp_fids)
